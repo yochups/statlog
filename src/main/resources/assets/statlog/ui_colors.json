@@ -1,0 +1,18 @@
+{
+  "heading": "#FFFFFF",
+  "player_name": "#FFFFFF",
+  "xp_level": null,
+  "attribute_available": "#3C332B",
+  "attribute_unavailable": "#9A8C80",
+  "selector_enabled": "#2C241B",
+  "selector_disabled": "#8A7D71",
+  "currency_xp": "#60450F",
+  "currency_custom": null,
+  "tooltip_title": "#FFFFFF",
+  "tooltip_description": "#DDDDDD",
+  "error": "#FF7777",
+  "button_done": "#FFFFFF",
+  "button_finalize": "#FFFFFF",
+  "edit_tooltip": "#FFFFFF",
+  "inventory_tab_tooltip": "#FFFFFF"
+}

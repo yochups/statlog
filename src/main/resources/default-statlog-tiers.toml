@@ -1,0 +1,34 @@
+# Item rules live here. /statlog reload applies edits to existing rules.
+# Each tier activates while the player's stat is BELOW required_level.
+# For the same item and stat, only the closest unmet level activates.
+# Add any number of tiers. You can put multiple actions at the same level.
+# Different stats and equipped items stack their penalties.
+# The examples below are disabled until you remove the # from each line.
+
+# [[tiers]]
+# item = "minecraft:netherite_sword"
+# stat = "statlog:empty/strength"
+# required_level = 5
+# type = "UNUSABLE"
+
+# [[tiers]]
+# item = "minecraft:netherite_sword"
+# stat = "statlog:empty/strength"
+# required_level = 10
+# type = "PLAYER_ATTRIBUTE"
+# target = "minecraft:generic.attack_speed"
+# amount = -0.5 # 50% slower while equipped
+
+# [[tiers]]
+# item = "minecraft:netherite_sword"
+# stat = "statlog:empty/strength"
+# required_level = 15
+# type = "PLAYER_ATTRIBUTE"
+# target = "minecraft:generic.attack_speed"
+# amount = -0.25
+
+# Other actions you can use at any tier:
+# type = "EFFECT" needs target = "minecraft:slowness" and amplifier = 0 (level I).
+# type = "ITEM_DAMAGE" needs multiplier = 0.5 (half melee damage with this item).
+# type = "ITEM_MINING_SPEED" needs multiplier = 0.5 (half mining speed with this item).
+# type = "UNUSABLE" needs no other fields.

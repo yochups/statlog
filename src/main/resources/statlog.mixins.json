@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.nidza.statlog.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["PlayerXpMixin"],
+  "injectors": {"defaultRequire": 1}
+}
