@@ -74,7 +74,7 @@ public final class AttributeDefinitions {
                     String id = string(row, "attribute", "");
                     ResourceLocation parsed = ResourceLocation.tryParse(id);
                     if (parsed == null) throw new IllegalArgumentException("invalid attribute ID");
-                    int min = integer(row, "min_level", 1);
+                    int min = integer(row, "min_level", 0);
                     int max = integer(row, "max_level", 10);
                     int start = integer(row, "starting_level", min);
                     double increment = number(row, "increment_value", 1.0);
@@ -103,10 +103,24 @@ public final class AttributeDefinitions {
                             ? stringsOrSingle(row.get("tab")) : strings(row.get("tabs"));
                     if (assignedTabs.stream().anyMatch(tab -> !loadedTabs.containsKey(tab)))
                         throw new IllegalArgumentException("unknown tab assignment");
+                    List<StatEffect> extra = new ArrayList<>();
+                    Object extraEntries = row.get("extra_attributes");
+                    if (extraEntries instanceof List<?> extraRows) for (Object extraEntry : extraRows) {
+                        if (!(extraEntry instanceof UnmodifiableConfig effect)) continue;
+                        String effectId = string(effect, "attribute", "");
+                        double effectIncrement = number(effect, "increment_value", 0);
+                        if (ResourceLocation.tryParse(effectId) == null || effectId.equals(id)
+                                || !Double.isFinite(effectIncrement) || extra.stream().anyMatch(e -> e.attribute().equals(effectId)))
+                            throw new IllegalArgumentException("invalid extra attribute " + effectId);
+                        extra.add(new StatEffect(effectId, effectIncrement, percent(effect, effectId),
+                                levelValues(effect, min, max)));
+                    }
                     AttributeDefinition def = new AttributeDefinition(id, name,
                             string(row, "description", ""), icon,
                             min, max, start, increment, cost, accepted, List.copyOf(assignedTabs),
-                            maxIcon, !Boolean.FALSE.equals(row.get("max_icon_sepia")));
+                            maxIcon, !Boolean.FALSE.equals(row.get("max_icon_sepia")), percent(row, id),
+                            string(row, "current_text", ""), string(row, "increment_text", ""),
+                            levelValues(row, min, max), List.copyOf(extra));
                     if (loaded.containsKey(id)) throw new IllegalArgumentException("duplicate attribute " + id);
                     if (loadedKeys.containsKey(key)) throw new IllegalArgumentException("duplicate short key " + key);
                     loaded.put(id, def);
@@ -159,6 +173,34 @@ public final class AttributeDefinitions {
     private static double number(UnmodifiableConfig c, String key, double fallback) {
         Object value = c.get(key);
         return value instanceof Number n ? n.doubleValue() : fallback;
+    }
+    private static boolean percent(UnmodifiableConfig c, String id) {
+        String fallback = id.equals("minecraft:generic.max_health") || id.equals("minecraft:generic.armor")
+                || id.equals("minecraft:generic.armor_toughness") || id.equals("statlog:target_invulnerability_ticks")
+                ? "NUMBER" : "PERCENT";
+        String format = string(c, "value_format", fallback).toUpperCase(java.util.Locale.ROOT);
+        if (!format.equals("NUMBER") && !format.equals("PERCENT"))
+            throw new IllegalArgumentException("value_format must be NUMBER or PERCENT");
+        return format.equals("PERCENT");
+    }
+    private static Map<Integer, Double> levelValues(UnmodifiableConfig row, int min, int max) {
+        Object configured = row.get("level_values");
+        if (configured == null) return Map.of();
+        if (!(configured instanceof List<?> entries)) throw new IllegalArgumentException("level_values must be a list");
+        Map<Integer, Double> values = new LinkedHashMap<>();
+        for (Object entry : entries) {
+            if (!(entry instanceof String text)) throw new IllegalArgumentException("invalid level_values entry");
+            String[] parts = text.split(":", 2);
+            try {
+                int level = Integer.parseInt(parts[0].trim());
+                double value = Double.parseDouble(parts[1].trim());
+                if (level < min || level > max || !Double.isFinite(value) || values.putIfAbsent(level, value) != null)
+                    throw new IllegalArgumentException("invalid level_values entry " + text);
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException error) {
+                throw new IllegalArgumentException("invalid level_values entry " + text, error);
+            }
+        }
+        return Map.copyOf(values);
     }
     private static List<String> strings(Object value) {
         if (!(value instanceof List<?> list)) return List.of();

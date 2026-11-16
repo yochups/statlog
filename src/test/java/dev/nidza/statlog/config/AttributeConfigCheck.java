@@ -13,11 +13,15 @@ public final class AttributeConfigCheck {
             Files.copy(template, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
         AttributeDefinitions.load(file);
-        if (AttributeDefinitions.all().size() != 9 || AttributeDefinitions.tabs().size() != 3
+        if (AttributeDefinitions.all().size() != 8 || AttributeDefinitions.tabs().size() != 3
                 || !AttributeDefinitions.resolve("strength").attribute().equals("minecraft:generic.attack_damage")
                 || !AttributeDefinitions.resolve("minecraft:strength").attribute().equals("minecraft:generic.attack_damage")
                 || !AttributeDefinitions.resolve("strength").acceptedPoints().equals(java.util.List.of("XP"))
-                || AttributeDefinitions.resolve("speed").maxLevel() != 5)
+                || AttributeDefinitions.resolve("speed").maxLevel() != 5
+                || AttributeDefinitions.resolve("strength").minLevel() != 0
+                || AttributeDefinitions.resolve("attack_speed").extraAttributes().size() != 1
+                || AttributeDefinitions.resolve("attack_speed").extraAttributes().getFirst().bonus(10, 0, 10) != -6
+                || !AttributeDefinitions.resolve("health").tabs().equals(java.util.List.of("combat", "survival", "utility")))
             throw new AssertionError("Concise default config did not load correctly");
 
         Files.writeString(file, """
@@ -37,16 +41,22 @@ public final class AttributeConfigCheck {
                 max_level = 10
                 starting_level = 1
                 cost = 1
+                [[listed_attributes.extra_attributes]]
+                attribute = "statlog:target_invulnerability_ticks"
+                increment_value = -0.6
+                level_values = ["5:4"]
                 """);
         AttributeDefinitions.load(file);
         if (AttributeDefinitions.all().size() != 1
                 || !AttributeDefinitions.resolve("strength").attribute().equals("minecraft:generic.attack_damage")
-                || !AttributeDefinitions.resolve("minecraft:generic.attack_damage").tabs().equals(java.util.List.of("combat")))
+                || !AttributeDefinitions.resolve("minecraft:generic.attack_damage").tabs().equals(java.util.List.of("combat"))
+                || AttributeDefinitions.resolve("strength").extraAttributes().getFirst().bonus(5, 1, 10) != -6
+                || AttributeDefinitions.resolve("strength").extraAttributes().getFirst().bonus(4, 1, 10) != -1.8)
             throw new AssertionError("Older attribute config fields lost compatibility");
 
         if (args.length > 0) {
             AttributeDefinitions.load(Path.of(args[0]));
-            if (AttributeDefinitions.all().size() != 9 || AttributeDefinitions.customPoints().size() != 9
+            if (AttributeDefinitions.all().size() != 8 || AttributeDefinitions.customPoints().size() != 9
                     || AttributeDefinitions.tabs().size() != 11
                     || AttributeDefinitions.tabs().keySet().stream().anyMatch(tab -> AttributeDefinitions.all().values()
                             .stream().noneMatch(def -> def.tabs().contains(tab)))

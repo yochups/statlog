@@ -7,13 +7,13 @@
 
 # [[tiers]]
 # item = "minecraft:netherite_sword"
-# stat = "statlog:empty/strength"
+# stat = "strength"
 # required_level = 5
 # type = "UNUSABLE"
 
 # [[tiers]]
 # item = "minecraft:netherite_sword"
-# stat = "statlog:empty/strength"
+# stat = "strength"
 # required_level = 10
 # type = "PLAYER_ATTRIBUTE"
 # target = "minecraft:generic.attack_speed"
@@ -21,7 +21,7 @@
 
 # [[tiers]]
 # item = "minecraft:netherite_sword"
-# stat = "statlog:empty/strength"
+# stat = "strength"
 # required_level = 15
 # type = "PLAYER_ATTRIBUTE"
 # target = "minecraft:generic.attack_speed"
@@ -32,3 +32,16 @@
 # type = "ITEM_DAMAGE" needs multiplier = 0.5 (half melee damage with this item).
 # type = "ITEM_MINING_SPEED" needs multiplier = 0.5 (half mining speed with this item).
 # type = "UNUSABLE" needs no other fields.
+
+# Restrictions can match an exact item/block or a #tag. Add several actions to
+# one rule. If both item and block are set, both must match. The message appears
+# in the action bar when the player is below required_level. Placeholders:
+# {stat}, {level}, {required}. Leave message out for a silent restriction.
+# [[tiers]]
+# type = "RESTRICT"
+# block = "#minecraft:doors"
+# actions = ["USE_BLOCK", "BREAK_BLOCK", "PLACE_BLOCK"]
+# stat = "strength"
+# required_level = 5
+# message = "You need Strength {required} to use this door."
+# Other actions: USE_ITEM, EAT, ATTACK_ENTITY, INTERACT_ENTITY.

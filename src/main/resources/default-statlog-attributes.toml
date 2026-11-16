@@ -32,15 +32,15 @@ texture = "utility.png"
 
 # Only listed attributes appear in Statlog. key is the short name for commands
 # and KubeJS. If omitted, a key is derived from name. Keep keys unique and stable.
-# Defaults per stat: min_level = 1, max_level = 10, starting_level = min_level,
+# Defaults per stat: min_level = 0, max_level = 10, starting_level = min_level,
 # increment_value = 1.0, cost = 1, currency = "XP".
-# For multiple currencies use accepted_points = ["XP", "POWER"].
 # For multiple tabs use tabs = ["combat", "survival"] instead of tab.
 # Optional: max_icon = false, max_icon_sepia = false.
 # The generated icon files are in config/statlog/icons/assets/statlog/textures/gui/attributes/.
 # name, description, tab names, and currency names may be translation keys from
 # config/statlog/lang/en_us.json, for example name = "statlog.attribute.strength".
-# For display-only stats use statlog:empty/your_key as the attribute ID.
+# For display-only stats use statlog:empty/your_key so each has a unique ID.
+# Extra attributes use their own increment_value and optional level_values = ["5:4"].
 
 [[listed_attributes]]
 attribute = "minecraft:generic.max_health"
@@ -48,7 +48,7 @@ key = "health"
 name = "Health"
 description = "Increases your maximum health."
 icon = "health.png"
-tab = "survival"
+tabs = ["combat", "survival", "utility"]
 
 [[listed_attributes]]
 attribute = "minecraft:generic.attack_damage"
@@ -85,20 +85,32 @@ description = "Increases your armor rating."
 icon = "defense.png"
 tab = "survival"
 increment_value = 0.5
+current_text = "Armor {1}, Toughness {2}"
+increment_text = "Per level: {1} Armor, {2} Toughness"
+
+[[listed_attributes.extra_attributes]]
+attribute = "minecraft:generic.armor_toughness"
+increment_value = 0.25
 
 [[listed_attributes]]
 attribute = "minecraft:generic.attack_speed"
 key = "attack_speed"
 name = "Attack Speed"
-description = "Increases your attack speed."
+description = "Increases attack speed and shortens enemy invulnerability after a hit."
 icon = "attack_speed.png"
 tab = "combat"
 increment_value = 0.1
+current_text = "Attack speed {1}, immunity change {2}"
+increment_text = "Next: {1} attack speed, {2} immunity ticks"
+
+[[listed_attributes.extra_attributes]]
+attribute = "statlog:target_invulnerability_ticks"
+increment_value = -0.6
 
 [[listed_attributes]]
 attribute = "minecraft:generic.knockback_resistance"
 key = "knockback"
-name = "Knockback"
+name = "Knockback Resistance"
 description = "Reduces how far you are knocked back."
 icon = "knockback.png"
 tab = "combat"
@@ -112,12 +124,3 @@ description = "Increases your luck."
 icon = "luck.png"
 tab = "utility"
 increment_value = 0.5
-
-[[listed_attributes]]
-attribute = "minecraft:generic.armor_toughness"
-key = "toughness"
-name = "Toughness"
-description = "Increases your armor toughness."
-icon = "toughness.png"
-tab = "survival"
-increment_value = 0.25

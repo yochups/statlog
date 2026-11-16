@@ -58,12 +58,7 @@ public final class UpgradeTransaction {
                     switch (paid.currency()) {
                         case "XP_LEVELS" -> vanillaLevels = saturatingAdd(vanillaLevels, refund);
                         case "STATLOG_XP" -> statlogXp = saturatingAdd(statlogXp, refund);
-                        case "XP" -> {
-                            // Legacy receipts used XP for both vanilla points and independent XP.
-                            if (StatlogConfig.CURRENCY_MODE.get().equalsIgnoreCase("STATLOG_XP"))
-                                statlogXp = saturatingAdd(statlogXp, refund);
-                            else vanillaXp = saturatingAdd(vanillaXp, refund);
-                        }
+                        case "XP" -> vanillaXp = saturatingAdd(vanillaXp, refund);
                         default -> balances.merge(paid.currency(), refund, UpgradeTransaction::saturatingAdd);
                     }
                 }
@@ -77,10 +72,7 @@ public final class UpgradeTransaction {
                         return "A scripted requirement blocks " + def.name();
                     int cost = cost(def, level, currency);
                     if (currency.equals("XP")) {
-                        if (StatlogConfig.CURRENCY_MODE.get().equalsIgnoreCase("STATLOG_XP")) {
-                            if (statlogXp < cost) return "Insufficient Statlog XP";
-                            statlogXp -= cost;
-                        } else if (StatlogConfig.CURRENCY_MODE.get().equalsIgnoreCase("XP_LEVELS")) {
+                        if (StatlogConfig.currencyMode().equals("XP_LEVELS")) {
                             if (vanillaLevels < cost) return "Insufficient XP levels";
                             vanillaLevels -= cost;
                         } else {
@@ -93,7 +85,7 @@ public final class UpgradeTransaction {
                         balances.put(currency, balance - cost);
                     }
                     String paidCurrency = currency.equals("XP")
-                            ? StatlogConfig.CURRENCY_MODE.get().toUpperCase(java.util.Locale.ROOT) : currency;
+                            ? StatlogConfig.currencyMode() : currency;
                     receipts.add(new PlayerProgress.Purchase(paidCurrency, cost));
                     spent.add(new Spent(def, currency, cost));
                 }
@@ -156,8 +148,7 @@ public final class UpgradeTransaction {
         return def.acceptedPoints().contains("ALL") || def.acceptedPoints().contains(currency);
     }
     public static int xpBalance(ServerPlayer player) {
-        if (StatlogConfig.CURRENCY_MODE.get().equalsIgnoreCase("STATLOG_XP")) return StatlogApi.data(player).xp();
-        if (StatlogConfig.CURRENCY_MODE.get().equalsIgnoreCase("XP_LEVELS")) return player.experienceLevel;
+        if (StatlogConfig.currencyMode().equals("XP_LEVELS")) return player.experienceLevel;
         return player.totalExperience;
     }
     private static int saturatingAdd(int a, int b) { return (int) Math.min(Integer.MAX_VALUE, (long) a + b); }

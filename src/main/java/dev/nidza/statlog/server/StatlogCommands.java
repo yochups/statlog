@@ -43,6 +43,14 @@ public final class StatlogCommands {
         root.then(numberCommands("level"));
         root.then(pointCommands("currency"));
         root.then(pointCommands("points"));
+        root.then(Commands.literal("orb").requires(source -> source.hasPermission(2))
+                .then(Commands.literal("spawn")
+                        .then(Commands.argument("currency", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(AttributeDefinitions.customPoints(), builder))
+                                .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> spawnOrb(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "currency"),
+                                                IntegerArgumentType.getInteger(ctx, "amount")))))));
         root.then(Commands.literal("respec").requires(source -> source.hasPermission(2))
                 .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.literal("all").executes(ctx -> {
@@ -243,11 +251,29 @@ public final class StatlogCommands {
                 default -> current;
             };
             if (!operation.equals("get")) StatlogApi.setPoints(player, currency, next);
-            return success(source, currency + ": " + next);
+            Component message = switch (operation) {
+                case "set" -> Component.translatable("statlog.command.currency.set", player.getName(), currency, next);
+                case "add" -> Component.translatable("statlog.command.currency.add", amount, player.getName(), currency);
+                case "remove" -> Component.translatable("statlog.command.currency.remove", amount, player.getName(), currency);
+                default -> Component.translatable("statlog.command.currency.get", player.getName(), next, currency);
+            };
+            return success(source, message);
         } catch (IllegalArgumentException | ArithmeticException ex) { return fail(source, ex.getMessage()); }
+    }
+    private static int spawnOrb(CommandSourceStack source, String currency, int amount) {
+        String id = currency.toUpperCase(java.util.Locale.ROOT);
+        if (!AttributeDefinitions.customPoints().contains(id)) return fail(source, "Unknown Statlog currency: " + id);
+        var position = source.getPosition();
+        if (!source.getLevel().addFreshEntity(new CurrencyOrb(source.getLevel(),
+                position.x, position.y, position.z, id, amount))) return fail(source, "Could not spawn currency orb");
+        return success(source, Component.translatable("statlog.command.orb.spawn", amount, id));
     }
     private static int success(CommandSourceStack source, String message) {
         source.sendSuccess(() -> Component.literal(message), false);
+        return 1;
+    }
+    private static int success(CommandSourceStack source, Component message) {
+        source.sendSuccess(() -> message, false);
         return 1;
     }
     private static int fail(CommandSourceStack source, String message) {

@@ -6,9 +6,9 @@ Configs are in `config/statlog/`, with a `README.md` there for examples. Add sta
 
 The menu opens in edit mode when you have the right permissions. Spending is only a preview until you press Finalize, whilst closing the menu cancels it. `after_finalize` chooses CLOSE, EDIT, or VIEW (CLOSE by default). The edit tab and XP bar are hidden by default. The add/remove/finalize sounds and maxed stat text can be changed in the client config.
 
-Vanilla XP levels are the default currency, with each level costing 50 XP by default, controlled by `linear_vanilla_xp` and `vanilla_xp_per_level`. Set `currency_mode` to `XP` for XP points or `STATLOG_XP` for separate Statlog XP to act as the currencies instead.
+Vanilla XP levels are the default currency, with each level costing 50 XP by default, controlled by `linear_vanilla_xp` and `vanilla_xp_per_level`. Set `currency_mode` to `XP` to spend vanilla XP points instead.
 
-Put custom currency IDs in `custom_points`, their names or translation keys in `[point_names]`, and their `#RRGGBB` colors in `[point_colors]`. XP and all custom currencies appear in a grid under the player. `statlog:empty` is a stat with no attribute bonus, and putting forward slashes like `statlog:empty/strength` between attributes let you have more than one.
+Put custom currency IDs in `custom_points`, their names or translation keys in `[point_names]`, and their `#RRGGBB` colors in `[point_colors]`. XP and custom currencies appear in a grid under the player when custom currencies exist. The registered `statlog:empty` attribute does nothing; use unique IDs such as `statlog:empty/strength` for cosmetic stats. Registered currencies can be spawned as pickup orbs with `/statlog orb spawn POWER 10`.
 
 `/statlog` opens your own menu and `/statlog help` lists commands. Management commands need operator level 2. Examples:
 
@@ -22,9 +22,11 @@ Put custom currency IDs in `custom_points`, their names or translation keys in `
 
 `op open` lets an operator edit another player's stats on their own screen. `respec all` refunds every recorded purchase. `reset` clears Statlog stats, points, and history without resetting vanilla XP.
 
-Item tiers go in `statlog-tiers.toml`. Each `[[tiers]]` has an item, stat, required_level, and type. `UNUSABLE` denies item useage. `EFFECT` adds a potion effect with `target` and `amplifier`. `PLAYER_ATTRIBUTE` changes an attribute while the item is equipped with `target` and `amount` (for example, -0.5 attack speed). `ITEM_DAMAGE` and `ITEM_MINING_SPEED` multiply that item's melee damage or mining speed using `multiplier` (0.5 means half). Old `requirements` rules in the common config still work.
+Item tiers go in `statlog-tiers.toml`. Each `[[tiers]]` has a stat, required_level, and type. `UNUSABLE` denies item use. `EFFECT` adds a potion effect with `target` and `amplifier`. `PLAYER_ATTRIBUTE` changes an attribute while the item is equipped with `target` and `amount` (for example, -0.5 attack speed). `ITEM_DAMAGE` and `ITEM_MINING_SPEED` multiply that item's melee damage or mining speed using `multiplier` (0.5 means half). `RESTRICT` takes an item and/or block ID or `#tag`, several `actions`, and an optional `message`. See the examples in `statlog-tiers.toml`.
 
 The example in the tier file uses 5/10/15 levels, but you can use any number of tiers and any levels. Only the closest unmet tier for an item and stat applies. Actions at the same tier and rules from different stats and equipped items stack.
+
+Attack Speed also lowers the registered `statlog:target_invulnerability_ticks` attribute. It starts at 10 ticks on living entities and reaches 4 ticks at the default Attack Speed maximum. Adjust its `increment_value` under `[[listed_attributes.extra_attributes]]`, or use `level_values = ["5:7"]` there to override a particular stat level. Armor likewise applies an Armor Toughness bonus through an extra attribute.
 
 For KubeJS, use `const Statlog = Java.loadClass('dev.nidza.statlog.server.StatlogApi')` in a `kubejs/server_scripts/` script. Read one stat with `Statlog.statLevel(event.player, 'strength')` and change it with `Statlog.setAttributeLevel(event.player, 'strength', 5)`. Full attribute IDs still work. The example is in `examples/kubejs/server_scripts/statlog_example.js`.
 

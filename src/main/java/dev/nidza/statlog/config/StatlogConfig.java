@@ -27,13 +27,20 @@ public final class StatlogConfig {
     public static final ModConfigSpec.ConfigValue<String> RESPEC_REFUND;
     public static final ModConfigSpec.BooleanValue RESPEC_REQUIRES_PERMISSION;
     public static final ModConfigSpec.BooleanValue KEEP_PROGRESS_ON_DEATH;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_REQUIREMENTS;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> DEBUFF_EFFECTS;
 
     public static final ModConfigSpec.BooleanValue SHOW_TAB;
     public static final ModConfigSpec.BooleanValue SHOW_EDIT_TAB;
+    public static final ModConfigSpec.BooleanValue HIDE_SINGLE_TAB;
     public static final ModConfigSpec.BooleanValue SHOW_XP_BAR;
     public static final ModConfigSpec.BooleanValue SHOW_TOOLTIPS;
+    public static final ModConfigSpec.BooleanValue SHOW_ROW_CURRENCY;
+    public static final ModConfigSpec.BooleanValue SHOW_TOOLTIP_CURRENCY;
+    public static final ModConfigSpec.BooleanValue MAX_CURRENCY_ICON;
+    public static final ModConfigSpec.BooleanValue MAX_CURRENCY_SEPIA;
+    public static final ModConfigSpec.BooleanValue SHOW_CURRENT_VALUE;
+    public static final ModConfigSpec.BooleanValue SHOW_INCREMENT_VALUE;
+    public static final ModConfigSpec.ConfigValue<String> CURRENT_VALUE_TEXT;
+    public static final ModConfigSpec.ConfigValue<String> INCREMENT_VALUE_TEXT;
     public static final ModConfigSpec.BooleanValue SMOOTH_SCROLLING;
     public static final ModConfigSpec.ConfigValue<String> EXPERIENCE_COLOR;
     public static final ModConfigSpec.DoubleValue SCROLL_X_SCALE;
@@ -61,7 +68,7 @@ public final class StatlogConfig {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
         b.push("progression");
         TITLE = b.comment("Title shown above the player preview; translation keys are supported.").define("title", "Attributes");
-        CURRENCY_MODE = b.comment("XP_LEVELS spends vanilla levels (default); XP spends vanilla points; STATLOG_XP uses independent progression XP.")
+        CURRENCY_MODE = b.comment("XP_LEVELS spends vanilla levels (default); XP spends vanilla points.")
                 .define("currency_mode", "XP_LEVELS");
         LINEAR_VANILLA_XP = b.comment("Use a fixed XP cost for each vanilla Minecraft level, so total XP grows linearly. Off keeps Minecraft's usual curve.")
                 .define("linear_vanilla_xp", true);
@@ -94,14 +101,6 @@ public final class StatlogConfig {
         KEEP_PROGRESS_ON_DEATH = b.comment("Copy saved progression, currencies, and purchase history on death.")
                 .define("keep_progress_on_death", true);
         b.pop();
-        b.push("items");
-        ITEM_REQUIREMENTS = b.comment("Older item rules still work here. Put new rules in statlog-tiers.toml instead.",
-                        "Old format: item|stat|required_level|UNUSABLE or item|stat|required_level|DEBUFF|effect_or_attribute|strength.")
-                .defineListAllowEmpty("requirements", List.of(), o -> o instanceof String);
-        DEBUFF_EFFECTS = b.comment("Effects for old four-part DEBUFF rules. Format effect_id|amplifier. Multiple sources stack.")
-                .defineListAllowEmpty("debuff_effects", List.of("minecraft:mining_fatigue|0", "minecraft:weakness|0"),
-                        o -> o instanceof String);
-        b.pop();
         COMMON_SPEC = b.build();
 
         b = new ModConfigSpec.Builder();
@@ -109,9 +108,27 @@ public final class StatlogConfig {
         SHOW_TAB = b.comment("Show the Statlog tab on the survival inventory.").define("show_statlog_button", true);
         SHOW_EDIT_TAB = b.comment("Show the book/barrier edit tab. Closing the screen already cancels unfinalized changes.")
                 .define("show_edit_tab", false);
+        HIDE_SINGLE_TAB = b.comment("Hide attribute tabs when only one tab is configured.")
+                .define("hide_single_tab", true);
         SHOW_XP_BAR = b.comment("Show the vanilla-style XP bar and level on the left side of Statlog.")
                 .define("show_xp_bar", false);
         SHOW_TOOLTIPS = b.comment("Show attribute descriptions when hovering entries.").define("show_attribute_tooltips", true);
+        SHOW_ROW_CURRENCY = b.comment("Show the required currency beside each attribute name. Multi-currency selectors stay visible.")
+                .define("show_row_currency", true);
+        SHOW_TOOLTIP_CURRENCY = b.comment("Show the required currency in attribute tooltips too.")
+                .define("show_tooltip_currency", false);
+        MAX_CURRENCY_ICON = b.comment("Use the alternate currency dot for maxed attributes.")
+                .define("max_currency_icon", true);
+        MAX_CURRENCY_SEPIA = b.comment("Tint maxed attribute currency dots sepia.")
+                .define("max_currency_sepia", true);
+        SHOW_CURRENT_VALUE = b.comment("Show the current stat bonus in attribute tooltips.")
+                .define("show_current_value", true);
+        SHOW_INCREMENT_VALUE = b.comment("Show the next level's increment on a separate tooltip line.")
+                .define("show_increment_value", true);
+        CURRENT_VALUE_TEXT = b.comment("Tooltip text for current bonus; {1}, {2}, etc. name each attribute in the stat.")
+                .define("current_value_text", "Current bonus: {1}");
+        INCREMENT_VALUE_TEXT = b.comment("Tooltip text for the next level; {1}, {2}, etc. name each attribute in the stat.")
+                .define("increment_value_text", "Next level: {1}");
         SMOOTH_SCROLLING = b.comment("Animate attribute list scrolling.").define("smooth_scrolling", true);
         EXPERIENCE_COLOR = b.comment("RGB hex color for Statlog progression displays.").define("experience_color", "#55FF55");
         ATTRIBUTE_ROW_HEIGHT = b.comment("Attribute row height in GUI pixels; 23 keeps icons and controls clear.")
@@ -162,6 +179,10 @@ public final class StatlogConfig {
         b.pop();
         b.pop();
         CLIENT_SPEC = b.build();
+    }
+
+    public static String currencyMode() {
+        return CURRENCY_MODE.get().equalsIgnoreCase("XP") ? "XP" : "XP_LEVELS";
     }
 
     private StatlogConfig() {}

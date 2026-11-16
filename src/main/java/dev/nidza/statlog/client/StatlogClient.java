@@ -4,7 +4,9 @@ import dev.nidza.statlog.Statlog;
 import dev.nidza.statlog.VanillaXpCurve;
 import dev.nidza.statlog.config.StatlogConfig;
 import dev.nidza.statlog.network.StatlogNetwork;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -20,11 +22,16 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.minecraft.client.renderer.entity.ExperienceOrbRenderer;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +40,14 @@ public final class StatlogClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(StatlogClient.class);
     private static final ResourceLocation TAB = ResourceLocation.fromNamespaceAndPath(Statlog.ID, "textures/gui/statlog_button.png");
     private static final ResourceLocation UPGRADE_BADGE = ResourceLocation.fromNamespaceAndPath(Statlog.ID, "textures/gui/statlog_upgrade_badge.png");
+    private static final KeyMapping OPEN_KEY = new KeyMapping("key.statlog.open",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_CAPS_LOCK, "key.categories.statlog");
     public StatlogClient(IEventBus modBus, ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         modBus.addListener(StatlogClient::setup);
+        modBus.addListener((RegisterKeyMappingsEvent event) -> event.register(OPEN_KEY));
+        modBus.addListener((EntityRenderersEvent.RegisterRenderers event) ->
+                event.registerEntityRenderer(Statlog.CURRENCY_ORB.get(), ExperienceOrbRenderer::new));
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
                 event.registerReloadListener((ResourceManagerReloadListener) StatlogTextColors::reload));
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
@@ -43,6 +55,12 @@ public final class StatlogClient {
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
                 event.registerReloadListener((ResourceManagerReloadListener) ignored -> StatlogLanguage.reload()));
         NeoForge.EVENT_BUS.addListener(StatlogClient::inventoryInit);
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> {
+            while (OPEN_KEY.consumeClick()) {
+                if (Minecraft.getInstance().player != null && Minecraft.getInstance().screen == null)
+                    PacketDistributor.sendToServer(new StatlogNetwork.RequestOpen("view"));
+            }
+        });
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> VanillaXpCurve.clearClient());
     }
     private static void setup(FMLClientSetupEvent event) {

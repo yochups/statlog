@@ -4,11 +4,14 @@ import com.electronwill.nightconfig.core.UnmodifiableConfig;
 import com.electronwill.nightconfig.toml.TomlParser;
 import com.mojang.logging.LogUtils;
 import dev.nidza.statlog.Statlog;
-import dev.nidza.statlog.config.StatlogConfig;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -27,31 +30,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.ToIntFunction;
 
 public final class ItemRules {
-    enum Kind { UNUSABLE, EFFECT, PLAYER_ATTRIBUTE, ITEM_DAMAGE, ITEM_MINING_SPEED, LEGACY_DEBUFF }
+    enum Kind { UNUSABLE, EFFECT, PLAYER_ATTRIBUTE, ITEM_DAMAGE, ITEM_MINING_SPEED }
     record Rule(ResourceLocation item, String stat, int required, boolean unusable,
                         ResourceLocation target, double strength, int index, Kind kind) {}
+    record Restriction(String item, String block, Set<String> actions, String stat, int required, String message) {}
     private record ModifierRef(Holder<Attribute> attribute, ResourceLocation id) {}
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static List<Rule> fileRules = List.of();
-    private static List<String> source = List.of();
-    private static List<Rule> parsed = List.of();
+    private static List<Restriction> restrictions = List.of();
     private static final Map<ServerPlayer, List<ModifierRef>> MODIFIERS = new WeakHashMap<>();
 
-    private static synchronized List<Rule> rules() {
-        List<String> current = List.copyOf(StatlogConfig.ITEM_REQUIREMENTS.get());
-        if (current.equals(source)) return parsed;
-        source = current;
-        List<Rule> merged = new ArrayList<>(fileRules);
-        for (Rule old : parse(current)) merged.add(new Rule(old.item(), old.stat(), old.required(),
-                old.unusable(), old.target(), old.strength(), fileRules.size() + old.index(), old.kind()));
-        parsed = List.copyOf(merged);
-        return parsed;
-    }
+    private static List<Rule> rules() { return fileRules; }
 
     public static synchronized void load() {
         Path file = FMLPaths.CONFIGDIR.get().resolve("statlog/statlog-tiers.toml");
@@ -61,9 +56,10 @@ public final class ItemRules {
                 if (template == null) throw new IOException("Default tier config missing");
                 Files.copy(template, file);
             }
-            fileRules = parseTiers(new TomlParser().parse(Files.readString(file)));
-            source = null;
-            LOGGER.info("Loaded {} Statlog item tier rules", fileRules.size());
+            UnmodifiableConfig config = new TomlParser().parse(Files.readString(file));
+            fileRules = parseTiers(config);
+            restrictions = parseRestrictions(config);
+            LOGGER.info("Loaded {} Statlog tier rules and {} restrictions", fileRules.size(), restrictions.size());
         } catch (Exception error) {
             LOGGER.error("Could not load Statlog item tiers at {}; retaining previous rules", file, error);
         }
@@ -76,11 +72,13 @@ public final class ItemRules {
         for (int i = 0; i < rows.size(); i++) {
             if (!(rows.get(i) instanceof UnmodifiableConfig row)) continue;
             try {
+                Object rawType = row.get("type");
+                if ("RESTRICT".equalsIgnoreCase(String.valueOf(rawType))) continue;
                 ResourceLocation item = ResourceLocation.parse((String) row.get("item"));
                 String stat = (String) row.get("stat");
                 int required = ((Number) row.get("required_level")).intValue();
                 Kind kind = Kind.valueOf(((String) row.get("type")).toUpperCase(Locale.ROOT));
-                if (stat.isBlank() || required < 0 || kind == Kind.LEGACY_DEBUFF)
+                if (stat.isBlank() || required < 0)
                     throw new IllegalArgumentException("invalid stat, level, or type");
                 ResourceLocation target = switch (kind) {
                     case EFFECT, PLAYER_ATTRIBUTE -> ResourceLocation.parse((String) row.get("target"));
@@ -104,25 +102,72 @@ public final class ItemRules {
         return List.copyOf(loaded);
     }
 
-    static List<Rule> parse(List<String> current) {
-        List<Rule> loaded = new ArrayList<>();
-        for (int i = 0; i < current.size(); i++) {
-            String[] parts = current.get(i).split("\\|", -1);
-            if (parts.length != 4 && parts.length != 6) continue;
-            ResourceLocation item = ResourceLocation.tryParse(parts[0].trim());
-            if (item == null) continue;
+    static List<Restriction> parseRestrictions(UnmodifiableConfig config) {
+        List<Restriction> loaded = new ArrayList<>();
+        Object entries = config.get("tiers");
+        if (!(entries instanceof List<?> rows)) return List.of();
+        for (int i = 0; i < rows.size(); i++) {
+            if (!(rows.get(i) instanceof UnmodifiableConfig row)) continue;
+            Object rawType = row.get("type");
+            if (!"RESTRICT".equalsIgnoreCase(String.valueOf(rawType))) continue;
             try {
-                int required = Integer.parseInt(parts[2].trim());
-                boolean unusable = parts[3].trim().equalsIgnoreCase("UNUSABLE");
-                if (!unusable && !parts[3].trim().equalsIgnoreCase("DEBUFF")) continue;
-                ResourceLocation target = parts.length == 6 ? ResourceLocation.tryParse(parts[4].trim()) : null;
-                double strength = parts.length == 6 ? Double.parseDouble(parts[5].trim()) : 0;
-                if (parts.length == 6 && (target == null || !Double.isFinite(strength))) continue;
-                loaded.add(new Rule(item, parts[1].trim(), required, unusable, target, strength, i,
-                        unusable ? Kind.UNUSABLE : Kind.LEGACY_DEBUFF));
-            } catch (NumberFormatException ignored) {}
+                String item = row.get("item") instanceof String s ? s : "";
+                String block = row.get("block") instanceof String s ? s : "";
+                if (item.isBlank() && block.isBlank()) throw new IllegalArgumentException("item or block is required");
+                for (String selector : List.of(item, block)) if (!selector.isBlank()
+                        && ResourceLocation.tryParse(selector.startsWith("#") ? selector.substring(1) : selector) == null)
+                    throw new IllegalArgumentException("invalid item or block selector " + selector);
+                Object rawActions = row.get("actions");
+                if (!(rawActions instanceof List<?> values) || values.isEmpty())
+                    throw new IllegalArgumentException("actions must be a nonempty list");
+                Set<String> actions = new java.util.LinkedHashSet<>();
+                for (Object value : values) {
+                    String action = String.valueOf(value).toUpperCase(Locale.ROOT);
+                    if (!Set.of("USE_ITEM", "EAT", "USE_BLOCK", "PLACE_BLOCK", "BREAK_BLOCK",
+                            "ATTACK_ENTITY", "INTERACT_ENTITY").contains(action))
+                        throw new IllegalArgumentException("unknown action " + action);
+                    actions.add(action);
+                }
+                String stat = (String) row.get("stat");
+                int required = ((Number) row.get("required_level")).intValue();
+                if (stat == null || stat.isBlank() || required < 0) throw new IllegalArgumentException("invalid stat or level");
+                loaded.add(new Restriction(item, block, Set.copyOf(actions), stat, required,
+                        row.get("message") instanceof String s ? s : ""));
+            } catch (RuntimeException error) {
+                LOGGER.warn("Ignoring Statlog restriction {}: {}", i + 1, error.getMessage());
+            }
         }
         return List.copyOf(loaded);
+    }
+
+    public static boolean restricted(ServerPlayer player, ItemStack stack, BlockState block, String action) {
+        for (Restriction rule : restrictions) {
+            if (!rule.actions().contains(action) || !matchesItem(rule.item(), stack)
+                    || !matchesBlock(rule.block(), block)) continue;
+            int level;
+            try { level = StatlogApi.attributeLevel(player, rule.stat()); }
+            catch (IllegalArgumentException ignored) { continue; }
+            if (level >= rule.required()) continue;
+            if (!rule.message().isBlank()) player.displayClientMessage(Component.literal(rule.message()
+                    .replace("{stat}", rule.stat()).replace("{level}", Integer.toString(level))
+                    .replace("{required}", Integer.toString(rule.required()))), true);
+            return true;
+        }
+        return false;
+    }
+    private static boolean matchesItem(String selector, ItemStack stack) {
+        if (selector.isBlank()) return true;
+        if (stack.isEmpty()) return false;
+        ResourceLocation id = ResourceLocation.parse(selector.startsWith("#") ? selector.substring(1) : selector);
+        return selector.startsWith("#") ? stack.is(TagKey.create(Registries.ITEM, id))
+                : BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(id);
+    }
+    private static boolean matchesBlock(String selector, BlockState state) {
+        if (selector.isBlank()) return true;
+        if (state == null) return false;
+        ResourceLocation id = ResourceLocation.parse(selector.startsWith("#") ? selector.substring(1) : selector);
+        return selector.startsWith("#") ? state.is(TagKey.create(Registries.BLOCK, id))
+                : BuiltInRegistries.BLOCK.getKey(state.getBlock()).equals(id);
     }
 
     private static List<Rule> active(ServerPlayer player, ItemStack stack) {
@@ -167,12 +212,9 @@ public final class ItemRules {
         Map<Holder<MobEffect>, Integer> effects = new HashMap<>();
         int slot = 0;
         for (ItemStack stack : player.getAllSlots()) {
-            boolean legacy = !stack.isEmpty() && StatlogHooks.itemMissing(player, stack, "DEBUFF");
             for (Rule rule : active(player, stack)) {
                 if (rule.unusable()) continue;
-                if (rule.kind() == Kind.LEGACY_DEBUFF && rule.target() == null) { legacy = true; continue; }
-                if (rule.kind() != Kind.LEGACY_DEBUFF && rule.kind() != Kind.PLAYER_ATTRIBUTE
-                        && rule.kind() != Kind.EFFECT) continue;
+                if (rule.kind() != Kind.PLAYER_ATTRIBUTE && rule.kind() != Kind.EFFECT) continue;
                 Holder<Attribute> attribute = rule.kind() == Kind.EFFECT ? null
                         : BuiltInRegistries.ATTRIBUTE.getHolder(rule.target()).orElse(null);
                 if (attribute != null) {
@@ -189,26 +231,11 @@ public final class ItemRules {
                         : BuiltInRegistries.MOB_EFFECT.getHolder(rule.target()).orElse(null);
                 if (effect != null) effects.merge(effect, Math.max(1, (int) rule.strength() + 1), Integer::sum);
             }
-            if (legacy) addLegacyEffects(effects);
             slot++;
         }
         MODIFIERS.put(player, applied);
         effects.forEach((effect, stacks) -> player.addEffect(new MobEffectInstance(effect, 40,
                 Math.min(255, stacks - 1), true, false, false)));
-    }
-
-    private static void addLegacyEffects(Map<Holder<MobEffect>, Integer> effects) {
-        for (String configured : StatlogConfig.DEBUFF_EFFECTS.get()) {
-            String[] parts = configured.split("\\|", 2);
-            ResourceLocation key = ResourceLocation.tryParse(parts[0].trim());
-            if (key == null) continue;
-            Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.getHolder(key).orElse(null);
-            if (effect == null) continue;
-            try {
-                int amplifier = parts.length == 2 ? Integer.parseInt(parts[1].trim()) : 0;
-                effects.merge(effect, Math.max(1, amplifier + 1), Integer::sum);
-            } catch (NumberFormatException ignored) {}
-        }
     }
 
     public static void clear(ServerPlayer player) {

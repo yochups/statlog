@@ -37,6 +37,7 @@ public final class StatlogScreen extends Screen {
     private static final ResourceLocation SCROLL_THUMB = texture("statlog_scroll_thumb.png");
     private static final ResourceLocation SCROLL_TRACK = texture("statlog_scroll_track.png");
     private static final ResourceLocation CURRENCY_ICON = texture("statlog_currency.png");
+    private static final ResourceLocation CURRENCY_MAX_ICON = texture("statlog_currency_max.png");
     private static final ResourceLocation WHITE = texture("white_pixel.png");
     private static final ResourceLocation EDIT_TAB = texture("statlog_edit_tab.png");
     private static final ResourceLocation XP_BG = ResourceLocation.withDefaultNamespace("hud/experience_bar_background");
@@ -50,6 +51,9 @@ public final class StatlogScreen extends Screen {
     private String error = "";
     private double scroll, targetScroll;
     private boolean dragging;
+    private String heldAttribute;
+    private int heldDirection;
+    private long nextRepeat;
     private final boolean requestOpen;
     private int x, y, panelWidth, panelHeight, leftWidth, listX, listY, listWidth, listHeight, rowHeight;
     private Button done, finalize;
@@ -141,6 +145,7 @@ public final class StatlogScreen extends Screen {
         } else if (activeTab != null && tabs.stream().noneMatch(tab -> tab.id().equals(activeTab))) {
             activeTab = tabs.isEmpty() ? null : tabs.getFirst().id();
         }
+        if (tabs.size() == 1 && StatlogConfig.HIDE_SINGLE_TAB.get()) return;
         for (int i = 0; i < tabs.size() && i < 11; i++) {
             AttributeTab tab = tabs.get(i);
             boolean bottom = i < 6;
@@ -150,10 +155,10 @@ public final class StatlogScreen extends Screen {
                     28, 18, StatlogLanguage.value(tab.name())) {
                 @Override protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float tick) {
                     ResourceLocation texture = GeneratedIcons.texture(tab.texture());
-                    if (texture != null) g.blit(texture, getX() - 15, getY() - (bottom ? 13 : 19), 58, 55,
+                    if (texture != null) g.blit(texture, getX() - 15, getY() - (bottom ? 18 : 19), 58, 55,
                             isHovered() || tab.id().equals(activeTab) ? 58 : 0, 0, 58, 55, 116, 55);
                     g.flush();
-                    renderTabItem(g, icon(tab.item()), getX() + 6, getY() + (bottom ? 5 : 1), bottom);
+                    renderTabItem(g, icon(tab.item()), getX() + 6, getY() + (bottom ? 0 : 1), bottom);
                 }
                 @Override public void onClick(double mouseX, double mouseY) {
                     activeTab = tab.id();
@@ -170,7 +175,8 @@ public final class StatlogScreen extends Screen {
     }
     private int tabX(int slot) { return listX + Math.round(slot * (listWidth - 44) / 5f); }
     private int tabY(boolean bottom, boolean selected) {
-        return (bottom ? listY + listHeight + 5 : listY - 27) + (selected ? 0 : bottom ? -4 : 4);
+        return bottom ? listY + listHeight + (selected ? 11 : 6)
+                : listY - (selected ? 28 : 23);
     }
     private void renderTabItem(GuiGraphics g, ItemStack item, int itemX, int itemY, boolean bottom) {
         // Items use their own GUI depth; clip the four recessed pixels at the panel edge.
@@ -188,7 +194,10 @@ public final class StatlogScreen extends Screen {
     public void result(String message) {
         error = message;
         if (message.isEmpty()) {
-            play(StatlogConfig.FINALIZE_SOUND.get());
+            if (pending.entrySet().stream().anyMatch(entry -> {
+                AttributeDefinition def = ClientState.definitions().get(entry.getKey());
+                return def != null && entry.getValue() != ClientState.level(def);
+            })) play(StatlogConfig.FINALIZE_SOUND.get());
             pending.clear();
             choices.clear();
             selected.clear();
@@ -213,6 +222,7 @@ public final class StatlogScreen extends Screen {
             minecraft.getSoundManager().play(SimpleSoundInstance.forUI(BuiltInRegistries.SOUND_EVENT.get(key), 1f));
     }
     @Override public void render(GuiGraphics g, int mx, int my, float tick) {
+        repeatArrow(mx, my);
         // Screen.render draws the menu blur, so it must run before our sharp GUI layers.
         super.render(g, mx, my, tick);
         // Commit tab items before the list panel covers the recessed parts of the tabs.
@@ -269,12 +279,9 @@ public final class StatlogScreen extends Screen {
     }
     private void renderProgress(GuiGraphics g) {
         if (!StatlogConfig.SHOW_XP_BAR.get() || minecraft == null || minecraft.player == null) return;
-        boolean independent = ClientState.currencyMode().equalsIgnoreCase("STATLOG_XP");
-        int level = independent ? ClientState.progressionLevel()
-                : ClientState.currencyMode().equalsIgnoreCase("XP_LEVELS") ? previewBalance("XP")
+        int level = ClientState.currencyMode().equalsIgnoreCase("XP_LEVELS") ? previewBalance("XP")
                 : ClientState.remote() ? ClientState.vanillaLevel() : minecraft.player.experienceLevel;
-        float fraction = independent ? Math.min(1f, previewBalance("XP") / (float) ClientState.nextLevelXp())
-                : ClientState.remote() ? ClientState.vanillaProgress() : minecraft.player.experienceProgress;
+        float fraction = ClientState.remote() ? ClientState.vanillaProgress() : minecraft.player.experienceProgress;
         if (editing && ClientState.currencyMode().equalsIgnoreCase("XP")) {
             XpPreview preview = previewVanillaXp(previewBalance("XP"));
             level = preview.level();
@@ -326,6 +333,7 @@ public final class StatlogScreen extends Screen {
         return 1395 + 112 * steps + 9 * steps * (steps - 1) / 2;
     }
     private void renderCurrencies(GuiGraphics g, int mx, int my) {
+        if (ClientState.customPoints().isEmpty()) return;
         List<String> currencies = new ArrayList<>();
         currencies.add("XP");
         currencies.addAll(ClientState.customPoints());
@@ -390,13 +398,11 @@ public final class StatlogScreen extends Screen {
                 g.blit(WHITE, listX + 5, rowY + rowHeight - 1, 0, 0, rowWidth - 10, 1, 1, 1);
                 g.setColor(1, 1, 1, 1);
             }
-            String currency = currency(def);
+            boolean rowCurrency = StatlogConfig.SHOW_ROW_CURRENCY.get() || eligible(def).size() > 1;
             boolean maxed = level(def) >= def.maxLevel();
-            int tint = maxed ? 0xFFAA8254 : currency.equals("XP") ? color() : ClientState.pointColor(currency);
-            g.setColor(((tint >> 16) & 255) / 255f, ((tint >> 8) & 255) / 255f, (tint & 255) / 255f, 1f);
-            g.blit(CURRENCY_ICON, listX + 1, rowY + (rowHeight - 16) / 2, 0, 0, 16, 16, 16, 16);
-            g.setColor(1, 1, 1, 1);
-            drawIcon(g, def.displayedIcon(level(def)), listX + 18, rowY + (rowHeight - 16) / 2);
+            if (rowCurrency) drawCurrencyIcon(g, def, listX + 1, rowY + (rowHeight - 16) / 2);
+            drawIcon(g, def.displayedIcon(level(def)), listX + (rowCurrency ? 18 : 1),
+                    rowY + (rowHeight - 16) / 2);
             int old = ClientState.level(def);
             int current = level(def);
             boolean canIncrease = current < def.maxLevel() && ClientState.canEdit()
@@ -405,8 +411,8 @@ public final class StatlogScreen extends Screen {
             int textColor = canIncrease ? StatlogTextColors.get("attribute_available", 0xFF3C332B)
                     : StatlogTextColors.get("attribute_unavailable", 0xFF9A8C80);
             if (maxed) textColor = maxedColor(textColor);
-            int textMax = Math.max(16, rowWidth - (editing ? 103 : 66));
-            int nameX = listX + 38;
+            int textMax = Math.max(16, rowWidth - (editing ? 103 : 66) + (rowCurrency ? 0 : 17));
+            int nameX = listX + (rowCurrency ? 38 : 21);
             int nameY = rowY + (rowHeight - 9) / 2;
             Component name = statText(StatlogLanguage.value(def.name()).getString(), maxed);
             int overflow = font.width(name) - textMax;
@@ -467,7 +473,7 @@ public final class StatlogScreen extends Screen {
         int index = (my - listY + (int) scroll) / rowHeight;
         if (index < 0 || index >= entries.size()) return;
         AttributeDefinition def = entries.get(index);
-        if (mx < listX + 17) {
+        if ((StatlogConfig.SHOW_ROW_CURRENCY.get() || eligible(def).size() > 1) && mx < listX + 17) {
             g.renderTooltip(font, ClientState.pointLabel(currency(def)), mx, my);
             return;
         }
@@ -476,9 +482,19 @@ public final class StatlogScreen extends Screen {
                 (int) Math.round(baseWidth * StatlogConfig.TOOLTIP_WIDTH_SCALE.get())
                         + StatlogConfig.TOOLTIP_WIDTH_OFFSET.get()));
         var lines = font.split(StatlogLanguage.value(def.description()), tw - 20);
-        int maxLines = Math.max(1, (height - 44) / 10);
+        boolean currentValue = StatlogConfig.SHOW_CURRENT_VALUE.get();
+        boolean incrementValue = StatlogConfig.SHOW_INCREMENT_VALUE.get() && level(def) < def.maxLevel();
+        boolean tooltipCurrency = StatlogConfig.SHOW_TOOLTIP_CURRENCY.get();
+        var currentLines = currentValue ? font.split(Component.literal(statValueText(def, level(def), false)), tw - 18)
+                : List.<net.minecraft.util.FormattedCharSequence>of();
+        var incrementLines = incrementValue ? font.split(Component.literal(statValueText(def, level(def), true)), tw - 18)
+                : List.<net.minecraft.util.FormattedCharSequence>of();
+        if (currentLines.size() > 2) currentLines = currentLines.subList(0, 2);
+        if (incrementLines.size() > 2) incrementLines = incrementLines.subList(0, 2);
+        int extraHeight = (currentLines.size() + incrementLines.size()) * 10 + (tooltipCurrency ? 14 : 0);
+        int maxLines = Math.max(0, (height - 44 - extraHeight) / 10);
         if (lines.size() > maxLines) lines = lines.subList(0, maxLines);
-        int th = Math.max(38, 32 + lines.size() * 10);
+        int th = Math.max(38, 32 + lines.size() * 10 + extraHeight);
         int tx = Math.max(6, Math.min(width - tw - 6, listX - 10 + (baseWidth - tw) / 2));
         int ty = Math.max(6, Math.min(listY - th - 17, height - th - 6));
         if (edit != null && edit.visible) ty = Math.max(6, Math.min(ty, edit.getY() - th - 21));
@@ -495,11 +511,58 @@ public final class StatlogScreen extends Screen {
                     StatlogTextColors.get("tooltip_description", 0xFFDDDDDD), false);
             lineY += 10;
         }
+        for (var line : currentLines) {
+            g.drawString(font, line, tx + 9, lineY,
+                    StatlogTextColors.get("tooltip_description", 0xFFDDDDDD), false);
+            lineY += 10;
+        }
+        for (var line : incrementLines) {
+            g.drawString(font, line, tx + 9, lineY, 0xFF999999, false);
+            lineY += 10;
+        }
+        if (tooltipCurrency) {
+            drawCurrencyIcon(g, def, tx + 8, lineY - 3);
+            g.drawString(font, ClientState.pointLabel(currency(def)), tx + 27, lineY,
+                    StatlogTextColors.get("tooltip_description", 0xFFDDDDDD), false);
+        }
+    }
+    private String statValueText(AttributeDefinition def, int currentLevel, boolean increment) {
+        String configured = increment ? def.incrementText() : def.currentText();
+        String template = configured.isBlank() ? increment ? StatlogConfig.INCREMENT_VALUE_TEXT.get()
+                : StatlogConfig.CURRENT_VALUE_TEXT.get() : configured;
+        String result = StatlogLanguage.value(template).getString();
+        int next = Math.min(def.maxLevel(), currentLevel + 1);
+        for (int i = 0; i < def.effects().size(); i++) {
+            var effect = def.effects().get(i);
+            double base = ClientState.attributeBase(effect.attribute());
+            double current = effect.bonus(currentLevel, def.minLevel(), base);
+            double amount = increment ? effect.bonus(next, def.minLevel(), base) - current : current;
+            if (effect.percent()) amount = Math.abs(base) < 0.000001 ? Double.NaN : amount / base * 100;
+            result = result.replace("{" + (i + 1) + "}", formatStatValue(amount, effect.percent()));
+        }
+        return result;
+    }
+    private String formatStatValue(double value, boolean percent) {
+        if (!Double.isFinite(value)) return "—";
+        if (Math.abs(value) < 0.005) value = 0;
+        String number = String.format(java.util.Locale.ROOT, "%.2f", Math.abs(value))
+                .replaceAll("0+$", "").replaceAll("\\.$", "");
+        return (value > 0 ? "+" : value < 0 ? "-" : "") + number + (percent ? "%" : "");
     }
     private ItemStack icon(String id) {
         ResourceLocation key = ResourceLocation.tryParse(id);
         Item item = key == null ? null : BuiltInRegistries.ITEM.get(key);
         return item == null ? ItemStack.EMPTY : item.getDefaultInstance();
+    }
+    private void drawCurrencyIcon(GuiGraphics g, AttributeDefinition def, int iconX, int iconY) {
+        String id = currency(def);
+        boolean maxed = level(def) >= def.maxLevel();
+        int tint = maxed && StatlogConfig.MAX_CURRENCY_SEPIA.get() ? 0xFFAA8254
+                : id.equals("XP") ? color() : ClientState.pointColor(id);
+        g.setColor(((tint >> 16) & 255) / 255f, ((tint >> 8) & 255) / 255f, (tint & 255) / 255f, 1f);
+        g.blit(maxed && StatlogConfig.MAX_CURRENCY_ICON.get() ? CURRENCY_MAX_ICON : CURRENCY_ICON,
+                iconX, iconY, 0, 0, 16, 16, 16, 16);
+        g.setColor(1, 1, 1, 1);
     }
     private void drawIcon(GuiGraphics g, String id, int iconX, int iconY) {
         ResourceLocation key = ResourceLocation.tryParse(id);
@@ -577,30 +640,49 @@ public final class StatlogScreen extends Screen {
             selected.merge(def.attribute(), 1, Integer::sum); return true;
         }
         if (mx >= right - 59 && mx < right - 42) {
-            int old = ClientState.level(def), current = level(def);
-            if (current > def.minLevel() && (current > old || ClientState.canRespec())) {
-                pending.put(def.attribute(), current - 1);
-                if (current > old && !choices.getOrDefault(def.attribute(), List.of()).isEmpty())
-                    choices.get(def.attribute()).removeLast();
-                play(StatlogConfig.REMOVE_POINT_SOUND.get());
-            }
+            heldAttribute = def.attribute(); heldDirection = -1; nextRepeat = Util.getMillis() + 350;
+            changeLevel(def, -1);
             return true;
         }
         if (mx >= right - 15 && mx < right + 4) {
-            int old = ClientState.level(def), current = level(def);
-            if (current < def.maxLevel() && ClientState.upgradeAllowed(def.attribute())
-                    && ClientState.canEdit() && affordable(def)) {
-                if (current >= old) choices.computeIfAbsent(def.attribute(), ignored -> new ArrayList<>()).add(currency(def));
-                pending.put(def.attribute(), current + 1);
-                play(StatlogConfig.ADD_POINT_SOUND.get());
-            }
+            heldAttribute = def.attribute(); heldDirection = 1; nextRepeat = Util.getMillis() + 350;
+            changeLevel(def, 1);
             return true;
         }
         return false;
     }
     @Override public boolean mouseReleased(double mx, double my, int button) {
         dragging = false;
+        if (button == 0) heldAttribute = null;
         return super.mouseReleased(mx, my, button);
+    }
+    private void repeatArrow(int mx, int my) {
+        if (heldAttribute == null || !editing || my < listY || my >= listY + listHeight) return;
+        int index = (int) (my - listY + scroll) / rowHeight;
+        List<AttributeDefinition> rows = entries();
+        int right = listX + listWidth - 22;
+        boolean onArrow = heldDirection < 0 ? mx >= right - 59 && mx < right - 42
+                : mx >= right - 15 && mx < right + 4;
+        if (index < 0 || index >= rows.size() || !rows.get(index).attribute().equals(heldAttribute) || !onArrow) return;
+        long now = Util.getMillis();
+        if (now >= nextRepeat) {
+            changeLevel(rows.get(index), heldDirection);
+            nextRepeat = now + 80;
+        }
+    }
+    private void changeLevel(AttributeDefinition def, int direction) {
+        int old = ClientState.level(def), current = level(def);
+        if (direction < 0 && current > def.minLevel() && (current > old || ClientState.canRespec())) {
+            pending.put(def.attribute(), current - 1);
+            if (current > old && !choices.getOrDefault(def.attribute(), List.of()).isEmpty())
+                choices.get(def.attribute()).removeLast();
+            play(StatlogConfig.REMOVE_POINT_SOUND.get());
+        } else if (direction > 0 && current < def.maxLevel() && ClientState.upgradeAllowed(def.attribute())
+                && ClientState.canEdit() && affordable(def)) {
+            if (current >= old) choices.computeIfAbsent(def.attribute(), ignored -> new ArrayList<>()).add(currency(def));
+            pending.put(def.attribute(), current + 1);
+            play(StatlogConfig.ADD_POINT_SOUND.get());
+        }
     }
     @Override public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
         if (dragging) { dragScroll(my, maxScroll()); return true; }
@@ -637,7 +719,6 @@ public final class StatlogScreen extends Screen {
     }
     private int xpBalance() {
         if (minecraft == null || minecraft.player == null) return 0;
-        if (ClientState.currencyMode().equalsIgnoreCase("STATLOG_XP")) return ClientState.xp();
         if (ClientState.currencyMode().equalsIgnoreCase("XP_LEVELS"))
             return ClientState.remote() ? ClientState.vanillaLevel() : minecraft.player.experienceLevel;
         return ClientState.remote() ? ClientState.vanillaExperience() : minecraft.player.totalExperience;

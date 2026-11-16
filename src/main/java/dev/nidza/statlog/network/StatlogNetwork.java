@@ -8,6 +8,7 @@ import dev.nidza.statlog.server.StatlogApi;
 import dev.nidza.statlog.server.UpgradeTransaction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -138,7 +139,7 @@ public final class StatlogNetwork {
         snapshot.putString("TargetId", target.getUUID().toString());
         snapshot.putString("TargetName", target.getGameProfile().getName());
         snapshot.putString("Title", dev.nidza.statlog.config.StatlogConfig.TITLE.get());
-        snapshot.putString("CurrencyMode", dev.nidza.statlog.config.StatlogConfig.CURRENCY_MODE.get());
+        snapshot.putString("CurrencyMode", dev.nidza.statlog.config.StatlogConfig.currencyMode());
         snapshot.putBoolean("LinearVanillaXp", dev.nidza.statlog.config.StatlogConfig.LINEAR_VANILLA_XP.get());
         snapshot.putInt("VanillaXpPerLevel", dev.nidza.statlog.config.StatlogConfig.VANILLA_XP_PER_LEVEL.get());
         snapshot.putInt("XpCostBase", dev.nidza.statlog.config.StatlogConfig.XP_COST_BASE.get());
@@ -148,6 +149,7 @@ public final class StatlogNetwork {
         snapshot.putFloat("VanillaProgress", target.experienceProgress);
         snapshot.putInt("VanillaExperience", target.totalExperience);
         ListTag definitions = new ListTag();
+        CompoundTag attributeBases = new CompoundTag();
         for (AttributeDefinition def : AttributeDefinitions.all().values()) {
             if (!AttributeDefinitions.registered(def.attribute())) continue;
             CompoundTag entry = new CompoundTag();
@@ -161,6 +163,29 @@ public final class StatlogNetwork {
             entry.putInt("Max", def.maxLevel());
             entry.putInt("Start", def.startingLevel());
             entry.putDouble("Increment", def.incrementValue());
+            entry.putBoolean("Percent", def.percent());
+            entry.putString("CurrentText", def.currentText());
+            entry.putString("IncrementText", def.incrementText());
+            CompoundTag primaryValues = new CompoundTag();
+            def.levelValues().forEach((level, value) -> primaryValues.putDouble(Integer.toString(level), value));
+            entry.put("LevelValues", primaryValues);
+            ListTag extra = new ListTag();
+            for (var effect : def.extraAttributes()) {
+                CompoundTag row = new CompoundTag();
+                row.putString("Id", effect.attribute());
+                row.putDouble("Increment", effect.incrementValue());
+                row.putBoolean("Percent", effect.percent());
+                CompoundTag values = new CompoundTag();
+                effect.levelValues().forEach((level, value) -> values.putDouble(Integer.toString(level), value));
+                row.put("LevelValues", values);
+                extra.add(row);
+            }
+            entry.put("ExtraAttributes", extra);
+            for (var effect : def.effects()) {
+                var holder = BuiltInRegistries.ATTRIBUTE.getHolder(ResourceLocation.parse(effect.attribute())).orElse(null);
+                var instance = holder == null ? null : target.getAttribute(holder);
+                if (instance != null) attributeBases.putDouble(effect.attribute(), instance.getBaseValue());
+            }
             entry.putInt("Cost", def.cost());
             ListTag currencies = new ListTag();
             def.acceptedPoints().forEach(s -> currencies.add(net.minecraft.nbt.StringTag.valueOf(s)));
@@ -171,6 +196,7 @@ public final class StatlogNetwork {
             definitions.add(entry);
         }
         snapshot.put("Definitions", definitions);
+        snapshot.put("AttributeBases", attributeBases);
         ListTag tabs = new ListTag();
         for (var tab : AttributeDefinitions.tabs().values()) {
             CompoundTag entry = new CompoundTag();

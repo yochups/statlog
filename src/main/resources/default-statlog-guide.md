@@ -3,14 +3,14 @@
 Edit these files in this folder:
 
 - `statlog-attributes.toml`: currencies, tabs, visible stats, icons, costs and limits.
-- `statlog-common.toml`: XP mode, progression, editing, refunds and item rules.
+- `statlog-common.toml`: XP mode, progression, editing and refunds.
 - `statlog-client.toml`: menu display, colors, sounds and positions.
 - `statlog-tiers.toml`: item requirements and penalties.
 - `lang/en_us.json`: English menu text. Add another `<language_code>.json` here for another language.
 
 Run `/statlog reload` after editing attributes or item tiers. Reopen the menu to see changes. Use F3+T or restart the client after editing language files. Existing files are never replaced by a mod update.
 
-For common changes, look under `[progression]` for XP costs and leveling, `[access]` for editing and respec, and `[items]` for older item rules. In the client file, `[interface]` has visible controls, sounds, and maxed-stat styling; the other sections adjust tooltip, XP bar, and scrollbar placement. Every setting has a comment in its TOML file. You can leave a setting at its default and only change the ones you need.
+For common changes, look under `[progression]` for XP costs and leveling, and `[access]` for editing and respec. In the client file, `[interface]` has visible controls, sounds, and maxed-stat styling; the other sections adjust tooltip, XP bar, and scrollbar placement. Every setting has a comment in its TOML file. You can leave a setting at its default and only change the ones you need.
 
 ## Add a stat
 
@@ -29,7 +29,7 @@ increment_value = 0.2
 
 `key` is the short name for `/statlog stat` and KubeJS. Keep it stable. Full attribute IDs also work. Without a key, Statlog derives one from `name`. PNG filenames are created under `icons/assets/statlog/textures/gui/attributes/` on the client.
 
-Defaults: `min_level = 1`, `max_level = 10`, `starting_level = min_level`, `increment_value = 1.0`, `cost = 1`, `currency = "XP"`, `max_icon = true`, `max_icon_sepia = true`. Set any of these in a stat block to override it. For several currencies use `accepted_points = ["XP", "POWER"]`; for several tabs use `tabs = ["combat", "survival"]`. The older `accepted_points` and `tabs` fields remain supported.
+Defaults: `min_level = 0`, `max_level = 10`, `starting_level = min_level`, `increment_value = 1.0`, `cost = 1`, `currency = "XP"`, `max_icon = true`, `max_icon_sepia = true`. Set any of these in a stat block to override it. For several tabs use `tabs = ["combat", "survival"]`. Add `[[listed_attributes.extra_attributes]]` with its own `attribute` and `increment_value` to level several attributes together. `level_values = ["5:4"]` overrides an attribute's value at a specific level.
 
 ## Currencies and tabs
 
@@ -60,3 +60,5 @@ The longer `attributeLevel` and `points` command forms still work. Server-side K
 const Statlog = Java.loadClass('dev.nidza.statlog.server.StatlogApi')
 const strength = Statlog.statLevel(event.player, 'strength')
 ```
+
+Caps Lock opens Statlog by default. `/statlog orb spawn POWER 10` creates a pickup orb worth 10 POWER. Restriction rules in `statlog-tiers.toml` can target items or blocks by ID or tag, with actions such as `USE_ITEM`, `EAT`, `USE_BLOCK`, `PLACE_BLOCK`, `BREAK_BLOCK`, `ATTACK_ENTITY`, and `INTERACT_ENTITY`.

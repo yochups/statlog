@@ -17,7 +17,7 @@ Configurable player stats and leveling.
 
 [[dependencies.${mod_id}]]
 modId="puffish_attributes"
-type="required"
+type="optional"
 versionRange="[0,)"
 ordering="AFTER"
 side="BOTH"

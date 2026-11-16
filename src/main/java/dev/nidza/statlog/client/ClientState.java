@@ -2,6 +2,7 @@ package dev.nidza.statlog.client;
 
 import dev.nidza.statlog.config.AttributeDefinition;
 import dev.nidza.statlog.config.AttributeTab;
+import dev.nidza.statlog.config.StatEffect;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -22,6 +23,7 @@ public final class ClientState {
     private static Set<String> customPoints = Set.of();
     private static CompoundTag pointNames = new CompoundTag();
     private static CompoundTag pointColors = new CompoundTag();
+    private static CompoundTag attributeBases = new CompoundTag();
     private static boolean canEdit;
     private static boolean canRespec;
     private static String title = "Attributes";
@@ -63,10 +65,18 @@ public final class ClientState {
             for (Tag currency : row.getList("Currencies", Tag.TAG_STRING)) currencies.add(currency.getAsString());
             List<String> assignedTabs = new ArrayList<>();
             for (Tag tab : row.getList("Tabs", Tag.TAG_STRING)) assignedTabs.add(tab.getAsString());
+            List<StatEffect> extra = new ArrayList<>();
+            for (Tag rawEffect : row.getList("ExtraAttributes", Tag.TAG_COMPOUND)) {
+                CompoundTag effect = (CompoundTag) rawEffect;
+                extra.add(new StatEffect(effect.getString("Id"), effect.getDouble("Increment"),
+                        effect.getBoolean("Percent"), levelValues(effect.getCompound("LevelValues"))));
+            }
             AttributeDefinition def = new AttributeDefinition(row.getString("Id"), row.getString("Name"),
                     row.getString("Description"), row.getString("Icon"), row.getInt("Min"), row.getInt("Max"),
                     row.getInt("Start"), row.getDouble("Increment"), row.getInt("Cost"), currencies,
-                    assignedTabs, row.getBoolean("MaxIcon"), row.getBoolean("MaxIconSepia"));
+                    assignedTabs, row.getBoolean("MaxIcon"), row.getBoolean("MaxIconSepia"), row.getBoolean("Percent"),
+                    row.getString("CurrentText"), row.getString("IncrementText"),
+                    levelValues(row.getCompound("LevelValues")), List.copyOf(extra));
             loaded.put(def.attribute(), def);
         }
         definitions = java.util.Collections.unmodifiableMap(loaded);
@@ -82,13 +92,13 @@ public final class ClientState {
         customPoints = java.util.Collections.unmodifiableSet(points);
         pointNames = snapshot.getCompound("PointNames");
         pointColors = snapshot.getCompound("PointColors");
+        attributeBases = snapshot.getCompound("AttributeBases");
     }
     public static Map<String, AttributeDefinition> definitions() { return definitions; }
     public static List<AttributeTab> tabs() { return tabs; }
     public static Set<String> customPoints() { return customPoints; }
     public static String pointName(String id) {
-        if (id.equals("XP")) return currencyMode.equalsIgnoreCase("XP_LEVELS") ? "XP Levels"
-                : currencyMode.equalsIgnoreCase("STATLOG_XP") ? "Statlog XP" : "XP";
+        if (id.equals("XP")) return currencyMode.equalsIgnoreCase("XP_LEVELS") ? "XP Levels" : "XP";
         return pointNames.contains(id) ? pointNames.getString(id) : id;
     }
     public static Component pointLabel(String id) {
@@ -106,6 +116,13 @@ public final class ClientState {
     public static int pointColor(String id) {
         try { return 0xFF000000 | Integer.parseInt(pointColors.getString(id).replace("#", ""), 16); }
         catch (NumberFormatException ignored) { return 0xFFFFFFFF; }
+    }
+    public static double attributeBase(String id) { return attributeBases.getDouble(id); }
+    private static Map<Integer, Double> levelValues(CompoundTag values) {
+        Map<Integer, Double> result = new LinkedHashMap<>();
+        for (String key : values.getAllKeys()) try { result.put(Integer.parseInt(key), values.getDouble(key)); }
+        catch (NumberFormatException ignored) {}
+        return Map.copyOf(result);
     }
     public static boolean canEdit() { return canEdit; }
     public static boolean canRespec() { return canRespec; }
@@ -125,8 +142,7 @@ public final class ClientState {
     }
     public static boolean hasAffordableUpgrade(LocalPlayer player) {
         if (player == null || !canEdit) return false;
-        int xpBalance = currencyMode.equalsIgnoreCase("STATLOG_XP") ? xp()
-                : currencyMode.equalsIgnoreCase("XP_LEVELS") ? remote ? vanillaLevel : player.experienceLevel
+        int xpBalance = currencyMode.equalsIgnoreCase("XP_LEVELS") ? remote ? vanillaLevel : player.experienceLevel
                 : remote ? vanillaExperience : player.totalExperience;
         for (AttributeDefinition def : definitions.values()) {
             int current = level(def);
