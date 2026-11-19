@@ -3,10 +3,14 @@ package dev.nidza.statlog.server;
 import dev.nidza.statlog.Statlog;
 import dev.nidza.statlog.config.AttributeDefinitions;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerEntity;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
@@ -48,6 +52,11 @@ public final class CurrencyOrb extends ExperienceOrb {
     }
 
     public String currency() { return entityData.get(CURRENCY); }
+
+    // The XP-orb packet creates a vanilla orb on the client, losing our synced currency field.
+    @Override public Packet<ClientGamePacketListener> getAddEntityPacket(ServerEntity entity) {
+        return new ClientboundAddEntityPacket(this, entity);
+    }
 
     @Override protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
