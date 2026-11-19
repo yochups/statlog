@@ -49,6 +49,7 @@ public final class StatlogScreen extends Screen {
     private boolean editing;
     private final boolean viewOnly;
     private String error = "";
+    private boolean submittedUpgrades;
     private double scroll, targetScroll;
     private boolean dragging;
     private String heldAttribute;
@@ -66,7 +67,11 @@ public final class StatlogScreen extends Screen {
         this("view", true);
     }
     public StatlogScreen(String mode) {
+        this(mode, "");
+    }
+    public StatlogScreen(String mode, String tab) {
         this(mode, false);
+        activeTab = tab.isBlank() ? null : tab;
     }
     private StatlogScreen(String mode, boolean requestOpen) {
         super(StatlogLanguage.key("statlog.gui.title"));
@@ -78,8 +83,8 @@ public final class StatlogScreen extends Screen {
         if (requestOpen && minecraft != null && minecraft.player != null) {
             PacketDistributor.sendToServer(new StatlogNetwork.RequestOpen("view"));
         }
-        panelWidth = Math.min(450, width - 18);
-        panelHeight = Math.min(280, height - 18);
+        panelWidth = Math.min(StatlogConfig.PANEL_WIDTH.get(), width - 18);
+        panelHeight = Math.min(StatlogConfig.PANEL_HEIGHT.get(), height - 18);
         x = (width - panelWidth) / 2;
         y = (height - panelHeight) / 2;
         listWidth = Math.min(190, Math.max(170, panelWidth * 42 / 100));
@@ -92,14 +97,17 @@ public final class StatlogScreen extends Screen {
         done = addRenderableWidget(Button.builder(StatlogTextColors.styled(StatlogLanguage.key("statlog.gui.done"),
                         "button_done", 0xFFFFFFFF), b -> onClose())
                 .bounds(x + 8, y + panelHeight - 27, leftWidth - 16, 20).build());
-        edit = addRenderableWidget(new AbstractWidget(tabX(5), tabY(false, editing), 28, 18,
+        edit = addRenderableWidget(new AbstractWidget(tabX(5), tabY(false, editing) - 1, 28, 20,
                 StatlogLanguage.key("statlog.gui.edit")) {
             @Override protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float tick) {
-                g.blit(EDIT_TAB, getX() - 15, getY() - 19, 58, 55,
-                        isHovered() || editing ? 58 : 0, 0, 58, 55, 116, 55);
+                int spriteX = isHovered() || editing ? 58 : 0;
+                g.blit(EDIT_TAB, getX() - 15, getY() - 18, 58, 55,
+                        spriteX, 0, 58, 55, 116, 55);
+                g.blit(EDIT_TAB, getX() - 15, getY() + 19, 58, 1,
+                        spriteX, 36, 58, 1, 116, 55);
                 g.flush();
                 renderTabItem(g, (editing ? Items.BARRIER : Items.WRITABLE_BOOK).getDefaultInstance(),
-                        getX() + 6, getY() + 1, false);
+                        getX() + 6, getY() + 2, false);
             }
             @Override public void onClick(double mouseX, double mouseY) {
                 if (editing) {
@@ -132,33 +140,41 @@ public final class StatlogScreen extends Screen {
         if (done != null) done.visible = !editing;
         if (edit != null) edit.visible = StatlogConfig.SHOW_EDIT_TAB.get() && !viewOnly && ClientState.canEdit();
         if (edit != null) edit.setMessage(StatlogLanguage.key(editing ? "statlog.gui.cancel_edit" : "statlog.gui.edit"));
-        if (edit != null) edit.setY(tabY(false, editing));
+        if (edit != null) edit.setY(tabY(false, editing) - 1);
         if (finalize != null) finalize.visible = editing;
     }
     private void rebuildTabs() {
         tabButtons.forEach(this::removeWidget);
         tabButtons.clear();
-        List<AttributeTab> tabs = ClientState.tabs();
-        if (!tabs.isEmpty() && !tabInitialized) {
-            activeTab = tabs.stream().anyMatch(tab -> tab.id().equals(lastTab)) ? lastTab : tabs.getFirst().id();
+        List<AttributeTab> tabs = ClientState.tabs().stream().filter(AttributeTab::visible).toList();
+        if (!ClientState.tabs().isEmpty() && !tabInitialized) {
+            activeTab = ClientState.tabs().stream().anyMatch(tab -> tab.id().equals(activeTab)) ? activeTab
+                    : ClientState.tabs().stream().anyMatch(tab -> tab.id().equals(lastTab)) ? lastTab
+                    : tabs.isEmpty() ? ClientState.tabs().getFirst().id() : tabs.getFirst().id();
+            lastTab = activeTab;
             tabInitialized = true;
-        } else if (activeTab != null && tabs.stream().noneMatch(tab -> tab.id().equals(activeTab))) {
+        } else if (activeTab != null && ClientState.tabs().stream().noneMatch(tab -> tab.id().equals(activeTab))) {
             activeTab = tabs.isEmpty() ? null : tabs.getFirst().id();
         }
-        if (tabs.size() == 1 && StatlogConfig.HIDE_SINGLE_TAB.get()) return;
+        if (tabs.size() <= 1 && StatlogConfig.HIDE_SINGLE_TAB.get()) return;
         for (int i = 0; i < tabs.size() && i < 11; i++) {
             AttributeTab tab = tabs.get(i);
             boolean bottom = i < 6;
             int slot = bottom ? 5 - i : i - 6;
             int tabX = tabX(slot);
-            AbstractWidget widget = new AbstractWidget(tabX, tabY(bottom, tab.id().equals(activeTab)),
-                    28, 18, StatlogLanguage.value(tab.name())) {
+            AbstractWidget widget = new AbstractWidget(tabX, tabY(bottom, tab.id().equals(activeTab)) - 1,
+                    28, 20, StatlogLanguage.value(tab.name())) {
                 @Override protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float tick) {
                     ResourceLocation texture = GeneratedIcons.texture(tab.texture());
-                    if (texture != null) g.blit(texture, getX() - 15, getY() - (bottom ? 18 : 19), 58, 55,
-                            isHovered() || tab.id().equals(activeTab) ? 58 : 0, 0, 58, 55, 116, 55);
+                    if (texture != null) {
+                        int spriteX = isHovered() || tab.id().equals(activeTab) ? 58 : 0;
+                        g.blit(texture, getX() - 15, getY() - (bottom ? 17 : 18), 58, 55,
+                                spriteX, 0, 58, 55, 116, 55);
+                        g.blit(texture, getX() - 15, getY() + (bottom ? 0 : 19), 58, 1,
+                                spriteX, bottom ? 18 : 36, 58, 1, 116, 55);
+                    }
                     g.flush();
-                    renderTabItem(g, icon(tab.item()), getX() + 6, getY() + (bottom ? 0 : 1), bottom);
+                    renderTabItem(g, icon(tab.item()), getX() + 6, getY() + (bottom ? 1 : 2), bottom);
                 }
                 @Override public void onClick(double mouseX, double mouseY) {
                     activeTab = tab.id();
@@ -187,17 +203,16 @@ public final class StatlogScreen extends Screen {
         g.disableScissor();
     }
     private void positionTabs() {
-        List<AttributeTab> tabs = ClientState.tabs();
+        List<AttributeTab> tabs = ClientState.tabs().stream().filter(AttributeTab::visible).toList();
         for (int i = 0; i < tabButtons.size(); i++)
-            tabButtons.get(i).setY(tabY(i < 6, tabs.get(i).id().equals(activeTab)));
+            tabButtons.get(i).setY(tabY(i < 6, tabs.get(i).id().equals(activeTab)) - 1);
     }
     public void result(String message) {
         error = message;
         if (message.isEmpty()) {
-            if (pending.entrySet().stream().anyMatch(entry -> {
-                AttributeDefinition def = ClientState.definitions().get(entry.getKey());
-                return def != null && entry.getValue() != ClientState.level(def);
-            })) play(StatlogConfig.FINALIZE_SOUND.get());
+            if (submittedUpgrades && StatlogConfig.FINALIZE_SOUND_ENABLED.get())
+                play(StatlogConfig.FINALIZE_SOUND.get());
+            submittedUpgrades = false;
             pending.clear();
             choices.clear();
             selected.clear();
@@ -208,6 +223,7 @@ public final class StatlogScreen extends Screen {
             }
             refresh();
         }
+        else submittedUpgrades = false;
     }
     @Override public void onClose() {
         pending.clear();
@@ -333,7 +349,7 @@ public final class StatlogScreen extends Screen {
         return 1395 + 112 * steps + 9 * steps * (steps - 1) / 2;
     }
     private void renderCurrencies(GuiGraphics g, int mx, int my) {
-        if (ClientState.customPoints().isEmpty()) return;
+        if (ClientState.customPoints().isEmpty() && StatlogConfig.HIDE_SINGLE_CURRENCY.get()) return;
         List<String> currencies = new ArrayList<>();
         currencies.add("XP");
         currencies.addAll(ClientState.customPoints());
@@ -353,7 +369,10 @@ public final class StatlogScreen extends Screen {
                 String value = Integer.toString(previewBalance(id));
                 int tint = id.equals("XP") ? color() : ClientState.pointColor(id);
                 g.setColor(((tint >> 16) & 255) / 255f, ((tint >> 8) & 255) / 255f, (tint & 255) / 255f, 1f);
-                g.blit(CURRENCY_ICON, cellX - 4, cellY - 4, 0, 0, 16, 16, 16, 16);
+                ResourceLocation pointTexture = id.equals("XP") ? CURRENCY_ICON
+                        : GeneratedIcons.texture(ClientState.pointIcon(id));
+                g.blit(pointTexture == null ? CURRENCY_ICON : pointTexture,
+                        cellX - 4, cellY - 4, 0, 0, 16, 16, 16, 16);
                 g.setColor(1, 1, 1, 1);
                 int textColor = id.equals("XP") ? StatlogTextColors.get("xp_level", tint)
                         : StatlogTextColors.get("currency_custom", tint);
@@ -398,7 +417,7 @@ public final class StatlogScreen extends Screen {
                 g.blit(WHITE, listX + 5, rowY + rowHeight - 1, 0, 0, rowWidth - 10, 1, 1, 1);
                 g.setColor(1, 1, 1, 1);
             }
-            boolean rowCurrency = StatlogConfig.SHOW_ROW_CURRENCY.get() || eligible(def).size() > 1;
+            boolean rowCurrency = showRowCurrency(def);
             boolean maxed = level(def) >= def.maxLevel();
             if (rowCurrency) drawCurrencyIcon(g, def, listX + 1, rowY + (rowHeight - 16) / 2);
             drawIcon(g, def.displayedIcon(level(def)), listX + (rowCurrency ? 18 : 1),
@@ -473,7 +492,7 @@ public final class StatlogScreen extends Screen {
         int index = (my - listY + (int) scroll) / rowHeight;
         if (index < 0 || index >= entries.size()) return;
         AttributeDefinition def = entries.get(index);
-        if ((StatlogConfig.SHOW_ROW_CURRENCY.get() || eligible(def).size() > 1) && mx < listX + 17) {
+        if (showRowCurrency(def) && mx < listX + 17) {
             g.renderTooltip(font, ClientState.pointLabel(currency(def)), mx, my);
             return;
         }
@@ -489,8 +508,6 @@ public final class StatlogScreen extends Screen {
                 : List.<net.minecraft.util.FormattedCharSequence>of();
         var incrementLines = incrementValue ? font.split(Component.literal(statValueText(def, level(def), true)), tw - 18)
                 : List.<net.minecraft.util.FormattedCharSequence>of();
-        if (currentLines.size() > 2) currentLines = currentLines.subList(0, 2);
-        if (incrementLines.size() > 2) incrementLines = incrementLines.subList(0, 2);
         int extraHeight = (currentLines.size() + incrementLines.size()) * 10 + (tooltipCurrency ? 14 : 0);
         int maxLines = Math.max(0, (height - 44 - extraHeight) / 10);
         if (lines.size() > maxLines) lines = lines.subList(0, maxLines);
@@ -502,8 +519,12 @@ public final class StatlogScreen extends Screen {
         ty = Math.max(6, Math.min(height - th - 6, ty + StatlogConfig.TOOLTIP_Y_OFFSET.get()));
         NineSlice.draw(g, TOOLTIP, tx, ty, tw, th);
         drawIcon(g, def.displayedIcon(level(def)), tx + 7, ty + 7);
-        String tooltipName = font.plainSubstrByWidth(StatlogLanguage.value(def.name()).getString(), Math.max(10, tw - 37));
-        g.drawString(font, tooltipName, tx + 28, ty + 10,
+        boolean currencyByName = StatlogConfig.SHOW_TOOLTIP_CURRENCY_BY_NAME.get();
+        if (currencyByName) drawCurrencyIcon(g, def, tx + 27, ty + 6);
+        int titleX = tx + (currencyByName ? 45 : 28);
+        String tooltipName = font.plainSubstrByWidth(StatlogLanguage.value(def.name()).getString(),
+                Math.max(10, tw - (currencyByName ? 54 : 37)));
+        g.drawString(font, tooltipName, titleX, ty + 10,
                 StatlogTextColors.get("tooltip_title", 0xFFFFFFFF), false);
         int lineY = ty + 26;
         for (var line : lines) {
@@ -512,8 +533,7 @@ public final class StatlogScreen extends Screen {
             lineY += 10;
         }
         for (var line : currentLines) {
-            g.drawString(font, line, tx + 9, lineY,
-                    StatlogTextColors.get("tooltip_description", 0xFFDDDDDD), false);
+            g.drawString(font, line, tx + 9, lineY, 0xFF999999, false);
             lineY += 10;
         }
         for (var line : incrementLines) {
@@ -530,14 +550,18 @@ public final class StatlogScreen extends Screen {
         String configured = increment ? def.incrementText() : def.currentText();
         String template = configured.isBlank() ? increment ? StatlogConfig.INCREMENT_VALUE_TEXT.get()
                 : StatlogConfig.CURRENT_VALUE_TEXT.get() : configured;
-        String result = StatlogLanguage.value(template).getString();
+        String separator = increment ? StatlogConfig.INCREMENT_VALUE_SEPARATOR.get()
+                : StatlogConfig.CURRENT_VALUE_SEPARATOR.get();
+        if (separator.equalsIgnoreCase("Break")) separator = "\n";
+        String result = StatlogLanguage.value(template).getString()
+                .replace("{value_separator}", separator).replace("{break}", "\n");
         int next = Math.min(def.maxLevel(), currentLevel + 1);
         for (int i = 0; i < def.effects().size(); i++) {
             var effect = def.effects().get(i);
             double base = ClientState.attributeBase(effect.attribute());
             double current = effect.bonus(currentLevel, def.minLevel(), base);
             double amount = increment ? effect.bonus(next, def.minLevel(), base) - current : current;
-            if (effect.percent()) amount = Math.abs(base) < 0.000001 ? Double.NaN : amount / base * 100;
+            if (effect.percent()) amount = amount / effect.percentageReference(base, def.minLevel(), def.maxLevel()) * 100;
             result = result.replace("{" + (i + 1) + "}", formatStatValue(amount, effect.percent()));
         }
         return result;
@@ -554,13 +578,20 @@ public final class StatlogScreen extends Screen {
         Item item = key == null ? null : BuiltInRegistries.ITEM.get(key);
         return item == null ? ItemStack.EMPTY : item.getDefaultInstance();
     }
+    private boolean showRowCurrency(AttributeDefinition def) {
+        return eligible(def).size() > 1 || StatlogConfig.SHOW_ROW_CURRENCY.get()
+                && !(ClientState.customPoints().isEmpty() && StatlogConfig.HIDE_SINGLE_CURRENCY.get());
+    }
     private void drawCurrencyIcon(GuiGraphics g, AttributeDefinition def, int iconX, int iconY) {
         String id = currency(def);
         boolean maxed = level(def) >= def.maxLevel();
         int tint = maxed && StatlogConfig.MAX_CURRENCY_SEPIA.get() ? 0xFFAA8254
                 : id.equals("XP") ? color() : ClientState.pointColor(id);
         g.setColor(((tint >> 16) & 255) / 255f, ((tint >> 8) & 255) / 255f, (tint & 255) / 255f, 1f);
-        g.blit(maxed && StatlogConfig.MAX_CURRENCY_ICON.get() ? CURRENCY_MAX_ICON : CURRENCY_ICON,
+        ResourceLocation pointTexture = id.equals("XP") ? CURRENCY_ICON
+                : GeneratedIcons.texture(ClientState.pointIcon(id));
+        g.blit(maxed && StatlogConfig.MAX_CURRENCY_ICON.get() ? CURRENCY_MAX_ICON
+                        : pointTexture == null ? CURRENCY_ICON : pointTexture,
                 iconX, iconY, 0, 0, 16, 16, 16, 16);
         g.setColor(1, 1, 1, 1);
     }
@@ -703,6 +734,10 @@ public final class StatlogScreen extends Screen {
     }
     private void submit() {
         if (!ClientState.canEdit()) { error = "Editing is no longer available"; return; }
+        submittedUpgrades = pending.entrySet().stream().anyMatch(entry -> {
+            AttributeDefinition def = ClientState.definitions().get(entry.getKey());
+            return def != null && entry.getValue() > ClientState.level(def);
+        });
         CompoundTag request = new CompoundTag();
         request.putString("TargetId", ClientState.targetId() == null ? "" : ClientState.targetId().toString());
         CompoundTag levels = new CompoundTag();

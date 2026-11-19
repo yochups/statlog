@@ -65,6 +65,20 @@ public final class GeneratedIcons {
                 ensure(file, i < 6 ? "tab_bottom" : "tab_top", file.getFileName().toString(), true);
                 load(tab.texture(), file);
             }
+            for (String id : ClientState.customPoints()) {
+                String icon = ClientState.pointIcon(id);
+                Path iconFile = path(icon);
+                if (iconFile != null) {
+                    ensure(iconFile, "currency", iconFile.getFileName().toString(), false);
+                    load(icon, iconFile);
+                }
+                String orb = ClientState.pointOrbTexture(id);
+                Path orbFile = path(orb);
+                if (orbFile != null) {
+                    ensure(orbFile, "orb", orbFile.getFileName().toString(), false);
+                    load(orb, orbFile);
+                }
+            }
         } catch (IOException error) {
             LOGGER.error("Could not prepare Statlog icon files in {}", ROOT, error);
         }
@@ -81,7 +95,7 @@ public final class GeneratedIcons {
     private static Path path(String id) {
         ResourceLocation key = ResourceLocation.tryParse(id);
         if (key == null || !key.getNamespace().equals("statlog")
-                || !key.getPath().matches("textures/gui/(attributes|tabs)/[a-z0-9_.-]+\\.png")) return null;
+                || !key.getPath().matches("textures/(gui/(attributes|tabs|currencies)|entity/currency_orbs)/[a-z0-9_.-]+\\.png")) return null;
         return ROOT.resolve("assets/statlog").resolve(key.getPath());
     }
 
@@ -91,7 +105,9 @@ public final class GeneratedIcons {
         String source = tab ? placeholder + ".png" : name;
         if (!tab && !List.of(DEFAULTS).contains(name.replace(".png", "")))
             source = DEFAULTS[ThreadLocalRandom.current().nextInt(DEFAULTS.length)] + ".png";
-        String resource = "/assets/statlog/icon_placeholders/" + (tab ? "tabs/" : "attributes/") + source;
+        String resource = placeholder.equals("currency") || placeholder.equals("orb")
+                ? "/assets/statlog/textures/gui/statlog_currency.png"
+                : "/assets/statlog/icon_placeholders/" + (tab ? "tabs/" : "attributes/") + source;
         try (InputStream in = GeneratedIcons.class.getResourceAsStream(resource)) {
             if (in == null) throw new IOException("Missing placeholder " + resource);
             Files.copy(in, file);

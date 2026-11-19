@@ -1,6 +1,7 @@
 package dev.nidza.statlog;
 
 import dev.nidza.statlog.config.AttributeDefinitions;
+import dev.nidza.statlog.compat.StatlogQuestlog;
 import dev.nidza.statlog.config.StatlogConfig;
 import dev.nidza.statlog.data.PlayerProgress;
 import dev.nidza.statlog.network.StatlogNetwork;
@@ -10,6 +11,7 @@ import dev.nidza.statlog.server.ItemRules;
 import dev.nidza.statlog.server.CurrencyOrb;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.loading.FMLPaths;
@@ -24,6 +26,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.RangedAttribute;
 import net.neoforged.neoforge.event.entity.EntityAttributeModificationEvent;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -58,6 +61,9 @@ public final class Statlog {
                 if (!event.has(type, TARGET_INVULNERABILITY_TICKS)) event.add(type, TARGET_INVULNERABILITY_TICKS);
         });
         modBus.addListener(StatlogNetwork::register);
+        modBus.addListener((FMLCommonSetupEvent event) -> {
+            if (ModList.get().isLoaded("questlog")) event.enqueueWork(StatlogQuestlog::register);
+        });
         moveOldConfigs();
         container.registerConfig(ModConfig.Type.COMMON, StatlogConfig.COMMON_SPEC, "statlog/statlog-common.toml");
         container.registerConfig(ModConfig.Type.CLIENT, StatlogConfig.CLIENT_SPEC, "statlog/statlog-client.toml");

@@ -23,6 +23,9 @@ public final class ClientState {
     private static Set<String> customPoints = Set.of();
     private static CompoundTag pointNames = new CompoundTag();
     private static CompoundTag pointColors = new CompoundTag();
+    private static CompoundTag pointIcons = new CompoundTag();
+    private static CompoundTag pointOrbTextures = new CompoundTag();
+    private static CompoundTag pointOrbColors = new CompoundTag();
     private static CompoundTag attributeBases = new CompoundTag();
     private static boolean canEdit;
     private static boolean canRespec;
@@ -69,14 +72,15 @@ public final class ClientState {
             for (Tag rawEffect : row.getList("ExtraAttributes", Tag.TAG_COMPOUND)) {
                 CompoundTag effect = (CompoundTag) rawEffect;
                 extra.add(new StatEffect(effect.getString("Id"), effect.getDouble("Increment"),
-                        effect.getBoolean("Percent"), levelValues(effect.getCompound("LevelValues"))));
+                        effect.getBoolean("Percent"), levelValues(effect.getCompound("LevelValues")),
+                        effect.getDouble("PercentageBase")));
             }
             AttributeDefinition def = new AttributeDefinition(row.getString("Id"), row.getString("Name"),
                     row.getString("Description"), row.getString("Icon"), row.getInt("Min"), row.getInt("Max"),
                     row.getInt("Start"), row.getDouble("Increment"), row.getInt("Cost"), currencies,
                     assignedTabs, row.getBoolean("MaxIcon"), row.getBoolean("MaxIconSepia"), row.getBoolean("Percent"),
                     row.getString("CurrentText"), row.getString("IncrementText"),
-                    levelValues(row.getCompound("LevelValues")), List.copyOf(extra));
+                    levelValues(row.getCompound("LevelValues")), row.getDouble("PercentageBase"), List.copyOf(extra));
             loaded.put(def.attribute(), def);
         }
         definitions = java.util.Collections.unmodifiableMap(loaded);
@@ -84,7 +88,7 @@ public final class ClientState {
         for (Tag raw : snapshot.getList("Tabs", Tag.TAG_COMPOUND)) {
             CompoundTag row = (CompoundTag) raw;
             loadedTabs.add(new AttributeTab(row.getString("Id"), row.getString("Name"),
-                    row.getString("Item"), row.getString("Texture")));
+                    row.getString("Item"), row.getString("Texture"), row.getBoolean("Visible")));
         }
         tabs = List.copyOf(loadedTabs);
         Set<String> points = new LinkedHashSet<>();
@@ -92,6 +96,9 @@ public final class ClientState {
         customPoints = java.util.Collections.unmodifiableSet(points);
         pointNames = snapshot.getCompound("PointNames");
         pointColors = snapshot.getCompound("PointColors");
+        pointIcons = snapshot.getCompound("PointIcons");
+        pointOrbTextures = snapshot.getCompound("PointOrbTextures");
+        pointOrbColors = snapshot.getCompound("PointOrbColors");
         attributeBases = snapshot.getCompound("AttributeBases");
     }
     public static Map<String, AttributeDefinition> definitions() { return definitions; }
@@ -116,6 +123,12 @@ public final class ClientState {
     public static int pointColor(String id) {
         try { return 0xFF000000 | Integer.parseInt(pointColors.getString(id).replace("#", ""), 16); }
         catch (NumberFormatException ignored) { return 0xFFFFFFFF; }
+    }
+    public static String pointIcon(String id) { return pointIcons.getString(id); }
+    public static String pointOrbTexture(String id) { return pointOrbTextures.getString(id); }
+    public static int pointOrbColor(String id) {
+        try { return 0xFF000000 | Integer.parseInt(pointOrbColors.getString(id).replace("#", ""), 16); }
+        catch (NumberFormatException ignored) { return pointColor(id); }
     }
     public static double attributeBase(String id) { return attributeBases.getDouble(id); }
     private static Map<Integer, Double> levelValues(CompoundTag values) {

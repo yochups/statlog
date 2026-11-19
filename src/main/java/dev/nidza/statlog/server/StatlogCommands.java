@@ -20,8 +20,16 @@ public final class StatlogCommands {
         root.then(Commands.literal("help").executes(ctx -> help(ctx.getSource())));
         var open = Commands.literal("open")
                 .executes(ctx -> openSelf(ctx.getSource()))
+                .then(Commands.literal("tab").then(Commands.argument("tab", StringArgumentType.word())
+                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(AttributeDefinitions.tabs().keySet(), builder))
+                        .executes(ctx -> open(ctx.getSource(), ctx.getSource().getPlayerOrException(), "view",
+                                StringArgumentType.getString(ctx, "tab")))))
                 .then(Commands.argument("player", EntityArgument.player()).requires(source -> source.hasPermission(2))
                 .executes(ctx -> open(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "view"))
+                        .then(Commands.literal("tab").then(Commands.argument("tab", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(AttributeDefinitions.tabs().keySet(), builder))
+                                .executes(ctx -> open(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "view",
+                                        StringArgumentType.getString(ctx, "tab")))))
                         .then(Commands.literal("view").executes(ctx ->
                                 open(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "view_only")))
                         .then(Commands.literal("edit").executes(ctx -> {
@@ -33,6 +41,10 @@ public final class StatlogCommands {
         root.then(Commands.literal("op").requires(source -> source.hasPermission(2)).then(Commands.literal("open")
                 .then(Commands.argument("player", EntityArgument.player())
                         .executes(ctx -> remoteOpen(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "edit"))
+                        .then(Commands.literal("tab").then(Commands.argument("tab", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(AttributeDefinitions.tabs().keySet(), builder))
+                                .executes(ctx -> remoteOpen(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "edit",
+                                        StringArgumentType.getString(ctx, "tab")))))
                         .then(Commands.literal("view").executes(ctx ->
                                 remoteOpen(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), "view")))
                         .then(Commands.literal("edit").executes(ctx ->
@@ -200,13 +212,21 @@ public final class StatlogCommands {
         return success(source, kind + " access for " + player.getName().getString() + ": " + allowed);
     }
     private static int open(CommandSourceStack source, ServerPlayer player, String mode) {
-        StatlogApi.open(player, mode);
+        return open(source, player, mode, "");
+    }
+    private static int open(CommandSourceStack source, ServerPlayer player, String mode, String tab) {
+        if (!tab.isBlank() && !AttributeDefinitions.tabs().containsKey(tab)) return fail(source, "Unknown Statlog tab: " + tab);
+        StatlogNetwork.open(player, mode, tab);
         return success(source, "Opened Statlog for " + player.getName().getString());
     }
     private static int remoteOpen(CommandSourceStack source, ServerPlayer target, String mode) {
+        return remoteOpen(source, target, mode, "");
+    }
+    private static int remoteOpen(CommandSourceStack source, ServerPlayer target, String mode, String tab) {
+        if (!tab.isBlank() && !AttributeDefinitions.tabs().containsKey(tab)) return fail(source, "Unknown Statlog tab: " + tab);
         try {
             ServerPlayer viewer = source.getPlayerOrException();
-            StatlogNetwork.openRemote(viewer, target, mode);
+            StatlogNetwork.openRemote(viewer, target, mode, tab);
             return success(source, "Opened " + target.getName().getString() + "'s Statlog");
         } catch (com.mojang.brigadier.exceptions.CommandSyntaxException error) {
             return fail(source, "This command must be run by a player");

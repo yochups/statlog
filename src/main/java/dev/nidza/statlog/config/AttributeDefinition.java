@@ -7,6 +7,7 @@ public record AttributeDefinition(String attribute, String name, String descript
                                   int cost, List<String> acceptedPoints, List<String> tabs,
                                   boolean maxIcon, boolean maxIconSepia, boolean percent,
                                   String currentText, String incrementText, java.util.Map<Integer, Double> levelValues,
+                                  double percentageBase,
                                   List<StatEffect> extraAttributes) {
     public String displayedIcon(int level) {
         if (!maxIcon || level < maxLevel || !icon.startsWith("statlog:textures/gui/attributes/") || !icon.endsWith(".png"))
@@ -14,11 +15,11 @@ public record AttributeDefinition(String attribute, String name, String descript
         return icon.substring(0, icon.length() - 4) + "_max.png";
     }
     public double bonus(int level) {
-        return new StatEffect(attribute, incrementValue, percent, levelValues).bonus(level, minLevel, 0);
+        return new StatEffect(attribute, incrementValue, percent, levelValues, percentageBase).bonus(level, minLevel, 0);
     }
     public List<StatEffect> effects() {
         java.util.ArrayList<StatEffect> result = new java.util.ArrayList<>();
-        result.add(new StatEffect(attribute, incrementValue, percent, levelValues));
+        result.add(new StatEffect(attribute, incrementValue, percent, levelValues, percentageBase));
         result.addAll(extraAttributes);
         return result;
     }

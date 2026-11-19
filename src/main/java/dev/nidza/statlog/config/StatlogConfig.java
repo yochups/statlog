@@ -35,12 +35,16 @@ public final class StatlogConfig {
     public static final ModConfigSpec.BooleanValue SHOW_TOOLTIPS;
     public static final ModConfigSpec.BooleanValue SHOW_ROW_CURRENCY;
     public static final ModConfigSpec.BooleanValue SHOW_TOOLTIP_CURRENCY;
+    public static final ModConfigSpec.BooleanValue SHOW_TOOLTIP_CURRENCY_BY_NAME;
+    public static final ModConfigSpec.BooleanValue HIDE_SINGLE_CURRENCY;
     public static final ModConfigSpec.BooleanValue MAX_CURRENCY_ICON;
     public static final ModConfigSpec.BooleanValue MAX_CURRENCY_SEPIA;
     public static final ModConfigSpec.BooleanValue SHOW_CURRENT_VALUE;
     public static final ModConfigSpec.BooleanValue SHOW_INCREMENT_VALUE;
     public static final ModConfigSpec.ConfigValue<String> CURRENT_VALUE_TEXT;
     public static final ModConfigSpec.ConfigValue<String> INCREMENT_VALUE_TEXT;
+    public static final ModConfigSpec.ConfigValue<String> CURRENT_VALUE_SEPARATOR;
+    public static final ModConfigSpec.ConfigValue<String> INCREMENT_VALUE_SEPARATOR;
     public static final ModConfigSpec.BooleanValue SMOOTH_SCROLLING;
     public static final ModConfigSpec.ConfigValue<String> EXPERIENCE_COLOR;
     public static final ModConfigSpec.DoubleValue SCROLL_X_SCALE;
@@ -48,6 +52,8 @@ public final class StatlogConfig {
     public static final ModConfigSpec.DoubleValue SCROLL_Y_SCALE;
     public static final ModConfigSpec.DoubleValue SCROLL_Y_OFFSET;
     public static final ModConfigSpec.IntValue ATTRIBUTE_ROW_HEIGHT;
+    public static final ModConfigSpec.IntValue PANEL_WIDTH;
+    public static final ModConfigSpec.IntValue PANEL_HEIGHT;
     public static final ModConfigSpec.DoubleValue TOOLTIP_WIDTH_SCALE;
     public static final ModConfigSpec.IntValue TOOLTIP_WIDTH_OFFSET;
     public static final ModConfigSpec.IntValue TOOLTIP_X_OFFSET;
@@ -57,6 +63,7 @@ public final class StatlogConfig {
     public static final ModConfigSpec.ConfigValue<String> ADD_POINT_SOUND;
     public static final ModConfigSpec.ConfigValue<String> REMOVE_POINT_SOUND;
     public static final ModConfigSpec.ConfigValue<String> FINALIZE_SOUND;
+    public static final ModConfigSpec.BooleanValue FINALIZE_SOUND_ENABLED;
     public static final ModConfigSpec.BooleanValue MAXED_BOLD;
     public static final ModConfigSpec.ConfigValue<String> MAXED_COLOR;
     public static final ModConfigSpec.BooleanValue MAXED_TEXT_SEPIA;
@@ -117,6 +124,10 @@ public final class StatlogConfig {
                 .define("show_row_currency", true);
         SHOW_TOOLTIP_CURRENCY = b.comment("Show the required currency in attribute tooltips too.")
                 .define("show_tooltip_currency", false);
+        SHOW_TOOLTIP_CURRENCY_BY_NAME = b.comment("Show the required currency next to the attribute name in its tooltip.")
+                .define("show_tooltip_currency_by_name", false);
+        HIDE_SINGLE_CURRENCY = b.comment("Hide row currency icons and the balance beneath the player when XP is the only currency.")
+                .define("hide_single_currency", true);
         MAX_CURRENCY_ICON = b.comment("Use the alternate currency dot for maxed attributes.")
                 .define("max_currency_icon", true);
         MAX_CURRENCY_SEPIA = b.comment("Tint maxed attribute currency dots sepia.")
@@ -129,10 +140,18 @@ public final class StatlogConfig {
                 .define("current_value_text", "Current bonus: {1}");
         INCREMENT_VALUE_TEXT = b.comment("Tooltip text for the next level; {1}, {2}, etc. name each attribute in the stat.")
                 .define("increment_value_text", "Next level: {1}");
+        CURRENT_VALUE_SEPARATOR = b.comment("Join aligned current_text entries with this text; Break starts a new line.")
+                .define("current_value_separator", ", ");
+        INCREMENT_VALUE_SEPARATOR = b.comment("Join aligned increment_text entries with this text; Break starts a new line.")
+                .define("increment_value_separator", ", ");
         SMOOTH_SCROLLING = b.comment("Animate attribute list scrolling.").define("smooth_scrolling", true);
         EXPERIENCE_COLOR = b.comment("RGB hex color for Statlog progression displays.").define("experience_color", "#55FF55");
         ATTRIBUTE_ROW_HEIGHT = b.comment("Attribute row height in GUI pixels; 23 keeps icons and controls clear.")
                 .defineInRange("attribute_row_height", 23, 23, 64);
+        PANEL_WIDTH = b.comment("Whole Statlog window width in GUI pixels; clamped to the screen.")
+                .defineInRange("panel_width", 450, 350, 1000);
+        PANEL_HEIGHT = b.comment("Whole Statlog window height in GUI pixels; clamped to the screen.")
+                .defineInRange("panel_height", 280, 220, 800);
         ANIMATE_UPGRADE_BADGE = b.comment("Make the inventory upgrade badge bob up and down.")
                 .define("animate_upgrade_badge", true);
         AFTER_FINALIZE = b.comment("What to do after a successful Finalize: CLOSE, EDIT, or VIEW.")
@@ -141,7 +160,9 @@ public final class StatlogConfig {
                 .define("add_point_sound", "minecraft:entity.experience_orb.pickup");
         REMOVE_POINT_SOUND = b.comment("Sound event played when subtracting a stat point. Blank disables it.")
                 .define("remove_point_sound", "minecraft:ui.button.click");
-        FINALIZE_SOUND = b.comment("Sound event played after Finalize succeeds. Blank disables it.")
+        FINALIZE_SOUND_ENABLED = b.comment("Play a sound when Finalize commits at least one added stat level.")
+                .define("finalize_sound_enabled", true);
+        FINALIZE_SOUND = b.comment("Sound event played after Finalize commits added stat levels. Blank disables it.")
                 .define("finalize_sound", "minecraft:block.enchantment_table.use");
         MAXED_BOLD = b.comment("Bold the stat name and number when it reaches its maximum level.")
                 .define("maxed_bold", true);

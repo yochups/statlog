@@ -34,10 +34,11 @@ public final class StatlogNetwork {
                 StreamCodec.composite(ByteBufCodecs.COMPOUND_TAG, Sync::data, Sync::new);
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
-    public record Open(String mode) implements CustomPacketPayload {
+    public record Open(String mode, String tab) implements CustomPacketPayload {
         public static final Type<Open> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(Statlog.ID, "open"));
         public static final StreamCodec<FriendlyByteBuf, Open> CODEC =
-                StreamCodec.composite(ByteBufCodecs.STRING_UTF8, Open::mode, Open::new);
+                StreamCodec.composite(ByteBufCodecs.STRING_UTF8, Open::mode,
+                        ByteBufCodecs.STRING_UTF8, Open::tab, Open::new);
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
     public record RequestOpen(String mode) implements CustomPacketPayload {
@@ -58,6 +59,12 @@ public final class StatlogNetwork {
                 StreamCodec.composite(ByteBufCodecs.STRING_UTF8, Result::error, Result::new);
         @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
     }
+    public record HurtFlash(int entityId, int ticks) implements CustomPacketPayload {
+        public static final Type<HurtFlash> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(Statlog.ID, "hurt_flash"));
+        public static final StreamCodec<FriendlyByteBuf, HurtFlash> CODEC = StreamCodec.composite(
+                ByteBufCodecs.VAR_INT, HurtFlash::entityId, ByteBufCodecs.VAR_INT, HurtFlash::ticks, HurtFlash::new);
+        @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
+    }
     public record CloseRemote() implements CustomPacketPayload {
         public static final Type<CloseRemote> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(Statlog.ID, "close_remote"));
         public static final StreamCodec<FriendlyByteBuf, CloseRemote> CODEC = StreamCodec.unit(new CloseRemote());
@@ -69,9 +76,11 @@ public final class StatlogNetwork {
         registrar.playToClient(Sync.TYPE, Sync.CODEC, (payload, context) ->
                 context.enqueueWork(() -> StatlogClient.sync(payload.data())));
         registrar.playToClient(Open.TYPE, Open.CODEC, (payload, context) ->
-                context.enqueueWork(() -> StatlogClient.open(payload.mode())));
+                context.enqueueWork(() -> StatlogClient.open(payload.mode(), payload.tab())));
         registrar.playToClient(Result.TYPE, Result.CODEC, (payload, context) ->
                 context.enqueueWork(() -> StatlogClient.result(payload.error())));
+        registrar.playToClient(HurtFlash.TYPE, HurtFlash.CODEC, (payload, context) ->
+                context.enqueueWork(() -> StatlogClient.hurtFlash(payload.entityId(), payload.ticks())));
         registrar.playToServer(RequestOpen.TYPE, RequestOpen.CODEC, StatlogNetwork::handleOpenRequest);
         registrar.playToServer(Finalize.TYPE, Finalize.CODEC, StatlogNetwork::handleFinalize);
         registrar.playToServer(CloseRemote.TYPE, CloseRemote.CODEC, (payload, context) -> context.enqueueWork(() -> {
@@ -164,6 +173,7 @@ public final class StatlogNetwork {
             entry.putInt("Start", def.startingLevel());
             entry.putDouble("Increment", def.incrementValue());
             entry.putBoolean("Percent", def.percent());
+            entry.putDouble("PercentageBase", def.percentageBase());
             entry.putString("CurrentText", def.currentText());
             entry.putString("IncrementText", def.incrementText());
             CompoundTag primaryValues = new CompoundTag();
@@ -175,6 +185,7 @@ public final class StatlogNetwork {
                 row.putString("Id", effect.attribute());
                 row.putDouble("Increment", effect.incrementValue());
                 row.putBoolean("Percent", effect.percent());
+                row.putDouble("PercentageBase", effect.percentageBase());
                 CompoundTag values = new CompoundTag();
                 effect.levelValues().forEach((level, value) -> values.putDouble(Integer.toString(level), value));
                 row.put("LevelValues", values);
@@ -204,6 +215,7 @@ public final class StatlogNetwork {
             entry.putString("Name", tab.name());
             entry.putString("Item", tab.item());
             entry.putString("Texture", tab.texture());
+            entry.putBoolean("Visible", tab.visible());
             tabs.add(entry);
         }
         snapshot.put("Tabs", tabs);
@@ -212,26 +224,41 @@ public final class StatlogNetwork {
         snapshot.put("CustomPoints", points);
         CompoundTag pointNames = new CompoundTag();
         CompoundTag pointColors = new CompoundTag();
+        CompoundTag pointIcons = new CompoundTag();
+        CompoundTag pointOrbTextures = new CompoundTag();
+        CompoundTag pointOrbColors = new CompoundTag();
         AttributeDefinitions.currencies().forEach((id, def) -> {
             pointNames.putString(id, def.name());
             pointColors.putString(id, def.color());
+            pointIcons.putString(id, def.icon());
+            pointOrbTextures.putString(id, def.orbTexture());
+            pointOrbColors.putString(id, def.orbColor());
         });
         snapshot.put("PointNames", pointNames);
         snapshot.put("PointColors", pointColors);
+        snapshot.put("PointIcons", pointIcons);
+        snapshot.put("PointOrbTextures", pointOrbTextures);
+        snapshot.put("PointOrbColors", pointOrbColors);
         PacketDistributor.sendToPlayer(viewer, new Sync(snapshot));
     }
     public static void open(ServerPlayer player, String mode) {
+        open(player, mode, "");
+    }
+    public static void open(ServerPlayer player, String mode, String tab) {
         REMOTE_TARGETS.remove(player.getUUID());
         sync(player);
         String actual = mode.equalsIgnoreCase("view_only") ? "view_only"
                 : StatlogApi.canEdit(player) ? "edit" : "view";
-        PacketDistributor.sendToPlayer(player, new Open(actual));
+        PacketDistributor.sendToPlayer(player, new Open(actual, tab));
     }
     public static void openRemote(ServerPlayer viewer, ServerPlayer target, String mode) {
+        openRemote(viewer, target, mode, "");
+    }
+    public static void openRemote(ServerPlayer viewer, ServerPlayer target, String mode, String tab) {
         if (!viewer.hasPermissions(2)) return;
         REMOTE_TARGETS.put(viewer.getUUID(), target.getUUID());
         sendSnapshot(viewer, target, true);
-        PacketDistributor.sendToPlayer(viewer, new Open(mode.equalsIgnoreCase("view") ? "view_only" : "edit"));
+        PacketDistributor.sendToPlayer(viewer, new Open(mode.equalsIgnoreCase("view") ? "view_only" : "edit", tab));
     }
     public static void closeRemote(ServerPlayer viewer) {
         if (REMOTE_TARGETS.remove(viewer.getUUID()) != null) sync(viewer);
@@ -246,7 +273,7 @@ public final class StatlogNetwork {
             ServerPlayer viewer = player.getServer().getPlayerList().getPlayer(viewerId);
             if (viewer != null) {
                 sync(viewer);
-                PacketDistributor.sendToPlayer(viewer, new Open("view_only"));
+                PacketDistributor.sendToPlayer(viewer, new Open("view_only", ""));
             }
         }
     }

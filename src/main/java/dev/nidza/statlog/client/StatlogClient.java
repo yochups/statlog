@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.api.distmarker.Dist;
@@ -24,7 +25,6 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.minecraft.client.renderer.entity.ExperienceOrbRenderer;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
@@ -47,7 +47,7 @@ public final class StatlogClient {
         modBus.addListener(StatlogClient::setup);
         modBus.addListener((RegisterKeyMappingsEvent event) -> event.register(OPEN_KEY));
         modBus.addListener((EntityRenderersEvent.RegisterRenderers event) ->
-                event.registerEntityRenderer(Statlog.CURRENCY_ORB.get(), ExperienceOrbRenderer::new));
+                event.registerEntityRenderer(Statlog.CURRENCY_ORB.get(), CurrencyOrbRenderer::new));
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
                 event.registerReloadListener((ResourceManagerReloadListener) StatlogTextColors::reload));
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
@@ -125,8 +125,15 @@ public final class StatlogClient {
         }
         if (Minecraft.getInstance().screen instanceof StatlogScreen screen) screen.refresh();
     }
-    public static void open(String mode) { Minecraft.getInstance().setScreen(new StatlogScreen(mode)); }
+    public static void open(String mode, String tab) { Minecraft.getInstance().setScreen(new StatlogScreen(mode, tab)); }
     public static void result(String error) {
         if (Minecraft.getInstance().screen instanceof StatlogScreen screen) screen.result(error);
+    }
+    public static void hurtFlash(int entityId, int ticks) {
+        if (Minecraft.getInstance().level != null
+                && Minecraft.getInstance().level.getEntity(entityId) instanceof LivingEntity entity) {
+            entity.hurtDuration = ticks;
+            entity.hurtTime = ticks;
+        }
     }
 }

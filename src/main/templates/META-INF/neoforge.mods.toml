@@ -23,6 +23,13 @@ ordering="AFTER"
 side="BOTH"
 
 [[dependencies.${mod_id}]]
+modId="questlog"
+type="optional"
+versionRange="[3.5.4,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.${mod_id}]]
 modId="fancymenu"
 type="optional"
 versionRange="[3.2.6,)"

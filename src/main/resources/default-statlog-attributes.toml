@@ -10,6 +10,21 @@ ENDURANCE = "Endurance"
 POWER = "#FF7777"
 ENDURANCE = "#77CCFF"
 
+# PNGs are created under config/statlog/icons/assets/statlog/. Currency icons
+# are 16x16; orb textures can be any square resolution, such as 64x64.
+[point_icons]
+POWER = "power.png"
+ENDURANCE = "endurance.png"
+
+[point_orb_textures]
+POWER = "power.png"
+ENDURANCE = "endurance.png"
+
+# Optional: omit this table to tint the orb with its point_colors value.
+[point_orb_colors]
+POWER = "#FF7777"
+ENDURANCE = "#77CCFF"
+
 # Tab order: first six appear below the panel, right to left. The next five
 # appear above it, left to right. The edit button reserves the sixth top slot.
 [[attribute_tabs]]
@@ -40,11 +55,16 @@ texture = "utility.png"
 # name, description, tab names, and currency names may be translation keys from
 # config/statlog/lang/en_us.json, for example name = "statlog.attribute.strength".
 # For display-only stats use statlog:empty/your_key so each has a unique ID.
-# Extra attributes use their own increment_value and optional level_values = ["5:4"].
+# Multi-attribute stats use aligned arrays: attributes, increments, descriptions,
+# value_formats, current_text and increment_text. Use percentage_bases to set
+# percentage reference values when a vanilla attribute starts at zero.
+# An optional level_values = [["5:4"], []] overrides a specific attribute value.
+# Set visible = false on a tab to keep it available to commands but hide its button.
 
 [[listed_attributes]]
 attribute = "minecraft:generic.max_health"
 key = "health"
+currency = "XP"
 name = "Health"
 description = "Increases your maximum health."
 icon = "health.png"
@@ -53,6 +73,7 @@ tabs = ["combat", "survival", "utility"]
 [[listed_attributes]]
 attribute = "minecraft:generic.attack_damage"
 key = "strength"
+currency = "XP"
 name = "Strength"
 description = "Increases your attack damage."
 icon = "strength.png"
@@ -62,6 +83,7 @@ increment_value = 0.2
 [[listed_attributes]]
 attribute = "minecraft:generic.movement_speed"
 key = "speed"
+currency = "XP"
 name = "Speed"
 description = "Increases your movement speed."
 icon = "speed.png"
@@ -72,55 +94,146 @@ max_level = 5
 [[listed_attributes]]
 attribute = "puffish_attributes:stamina"
 key = "stamina"
+currency = "XP"
 name = "Stamina"
 description = "Increases your stamina capacity."
 icon = "stamina.png"
 tab = "survival"
 
 [[listed_attributes]]
-attribute = "minecraft:generic.armor"
+attributes = ["minecraft:generic.armor", "minecraft:generic.armor_toughness"]
 key = "armor"
+currency = "XP"
 name = "Armor"
-description = "Increases your armor rating."
+descriptions = ["Increases your armor rating.", "Increases your armor toughness."]
 icon = "defense.png"
 tab = "survival"
-increment_value = 0.5
-current_text = "Armor {1}, Toughness {2}"
-increment_text = "Per level: {1} Armor, {2} Toughness"
-
-[[listed_attributes.extra_attributes]]
-attribute = "minecraft:generic.armor_toughness"
-increment_value = 0.25
+increments = [0.5, 0.25]
+value_formats = ["NUMBER", "NUMBER"]
+current_text = ["Armor {1}", "Toughness {2}"]
+increment_text = ["Next Armor {1}", "Toughness {2}"]
 
 [[listed_attributes]]
-attribute = "minecraft:generic.attack_speed"
+attributes = ["minecraft:generic.attack_speed", "statlog:target_invulnerability_ticks"]
 key = "attack_speed"
+currency = "XP"
 name = "Attack Speed"
-description = "Increases attack speed and shortens enemy invulnerability after a hit."
+descriptions = ["Increases attack speed.", "Shortens enemy invulnerability after a hit."]
 icon = "attack_speed.png"
 tab = "combat"
-increment_value = 0.1
-current_text = "Attack speed {1}, immunity change {2}"
-increment_text = "Next: {1} attack speed, {2} immunity ticks"
-
-[[listed_attributes.extra_attributes]]
-attribute = "statlog:target_invulnerability_ticks"
-increment_value = -0.6
+increments = [0.1, -0.6]
+value_formats = ["PERCENT", "NUMBER"]
+current_text = ["Attack speed {1}", "Immunity change {2}"]
+increment_text = ["Next speed {1}", "Immunity ticks {2}"]
 
 [[listed_attributes]]
-attribute = "minecraft:generic.knockback_resistance"
+attributes = ["minecraft:generic.knockback_resistance", "minecraft:generic.explosion_knockback_resistance"]
 key = "knockback"
+currency = "XP"
 name = "Knockback Resistance"
-description = "Reduces how far you are knocked back."
+descriptions = ["Reduces attack knockback.", "Reduces explosion knockback."]
 icon = "knockback.png"
 tab = "combat"
-increment_value = 0.05
+increments = [0.05, 0.05]
+value_formats = ["PERCENT", "PERCENT"]
+percentage_bases = [1, 1]
+current_text = ["Attack knockback resistance {1}", "Explosion resistance {2}"]
+increment_text = ["Next attack resistance {1}", "Explosion resistance {2}"]
 
 [[listed_attributes]]
 attribute = "minecraft:generic.luck"
 key = "luck"
+currency = "XP"
 name = "Luck"
 description = "Increases your luck."
 icon = "luck.png"
 tab = "utility"
 increment_value = 0.5
+
+[[listed_attributes]]
+attribute = "minecraft:generic.attack_knockback"
+key = "attack_knockback"
+currency = "XP"
+name = "Attack Knockback"
+description = "Pushes enemies farther with melee hits."
+icon = "attack_knockback.png"
+tab = "combat"
+increment_value = 0.15
+value_format = "NUMBER"
+
+[[listed_attributes]]
+attribute = "minecraft:generic.burning_time"
+key = "burning_time"
+currency = "XP"
+name = "Fire Resistance"
+description = "Shortens the time you stay on fire."
+icon = "burning_time.png"
+tab = "survival"
+increment_value = -0.05
+
+[[listed_attributes]]
+attributes = ["minecraft:generic.fall_damage_multiplier", "minecraft:generic.safe_fall_distance"]
+key = "fall_reduction"
+currency = "XP"
+name = "Fall Protection"
+descriptions = ["Reduces fall damage.", "Increases the distance you can fall safely."]
+icon = "fall_reduction.png"
+tab = "survival"
+increments = [-0.05, 0.2]
+value_formats = ["PERCENT", "NUMBER"]
+current_text = ["Fall damage change {1}", "Safe fall distance {2}"]
+increment_text = ["Next fall damage {1}", "Safe distance {2}"]
+
+[[listed_attributes]]
+attribute = "minecraft:generic.jump_strength"
+key = "jump_strength"
+currency = "XP"
+name = "Jump Strength"
+description = "Increases your jump height."
+icon = "jump_strength.png"
+tab = "utility"
+increment_value = 0.02
+
+[[listed_attributes]]
+attribute = "minecraft:generic.oxygen_bonus"
+key = "oxygen_bonus"
+currency = "XP"
+name = "Breath Control"
+description = "Helps conserve air underwater."
+icon = "oxygen_bonus.png"
+tab = "survival"
+increment_value = 0.2
+value_format = "NUMBER"
+
+[[listed_attributes]]
+attribute = "minecraft:player.block_break_speed"
+key = "mining_speed"
+currency = "XP"
+name = "Mining Speed"
+description = "Speeds up block breaking."
+icon = "mining_speed.png"
+tab = "utility"
+increment_value = 0.05
+
+[[listed_attributes]]
+attribute = "minecraft:generic.step_height"
+key = "step_height"
+currency = "XP"
+name = "Step Height"
+description = "Lets you step over taller ledges."
+icon = "step_height.png"
+tab = "utility"
+increment_value = 0.05
+value_format = "NUMBER"
+
+[[listed_attributes]]
+attribute = "minecraft:generic.water_movement_efficiency"
+key = "swimming"
+currency = "XP"
+name = "Swimming"
+description = "Moves you through water more easily."
+icon = "swimming.png"
+tab = "utility"
+increment_value = 0.05
+value_format = "PERCENT"
+percentage_base = 1

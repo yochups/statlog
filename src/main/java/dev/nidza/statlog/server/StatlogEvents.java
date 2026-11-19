@@ -15,8 +15,14 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 public final class StatlogEvents {
+    private static final Map<LivingEntity, Integer> PENDING_FLASH = new IdentityHashMap<>();
     @SubscribeEvent
     public static void login(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
@@ -125,8 +131,20 @@ public final class StatlogEvents {
                 event.getEntity().invulnerableTime = 10 + ticks;
                 event.getEntity().hurtDuration = ticks;
                 event.getEntity().hurtTime = ticks;
+                if (!event.getEntity().level().isClientSide)
+                    PENDING_FLASH.put(event.getEntity(), ticks);
             }
         }
+    }
+    @SubscribeEvent
+    public static void syncHurtFlash(ServerTickEvent.Post event) {
+        PENDING_FLASH.forEach((entity, ticks) -> {
+            if (entity.isRemoved() || !(entity.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+            StatlogNetwork.HurtFlash packet = new StatlogNetwork.HurtFlash(entity.getId(), ticks);
+            PacketDistributor.sendToPlayersTrackingChunk(level, entity.chunkPosition(), packet);
+            if (entity instanceof ServerPlayer player) PacketDistributor.sendToPlayer(player, packet);
+        });
+        PENDING_FLASH.clear();
     }
     @SubscribeEvent
     public static void itemMiningSpeed(PlayerEvent.BreakSpeed event) {

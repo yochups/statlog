@@ -27,7 +27,7 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    maven { url 'https://www.cursemaven.com' }
 }
 
 base {
@@ -116,6 +116,7 @@ configurations {
 }
 
 dependencies {
+    compileOnly 'curse.maven:questlog-1202066:9457738'
     // Local development runtime only; modpacks supply this required mod themselves.
     if (file("libs/puffish_attributes-0.8.3-1.21-neoforge.jar").exists()) {
         localRuntime files("libs/puffish_attributes-0.8.3-1.21-neoforge.jar")

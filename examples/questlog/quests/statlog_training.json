@@ -1,0 +1,23 @@
+{
+  "title": "Strength Training",
+  "description": "Gain two Strength levels to earn Power currency.",
+  "icon": { "item": "minecraft:iron_sword" },
+  "repeatable": true,
+  "objectives": [
+    {
+      "type": "statlog:stat",
+      "stat": "strength",
+      "mode": "GAIN",
+      "required_amount": 2,
+      "display": { "name": "Gain two Strength levels" }
+    }
+  ],
+  "rewards": [
+    {
+      "type": "statlog:currency",
+      "currency": "POWER",
+      "amount": 5,
+      "display": { "name": "5 Power" }
+    }
+  ]
+}
