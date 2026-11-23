@@ -48,6 +48,7 @@ public final class StatlogConfig {
     public static final ModConfigSpec.ConfigValue<String> CURRENT_VALUE_SEPARATOR;
     public static final ModConfigSpec.ConfigValue<String> INCREMENT_VALUE_SEPARATOR;
     public static final ModConfigSpec.BooleanValue SMOOTH_SCROLLING;
+    public static final ModConfigSpec.BooleanValue SCROLL_NAMES_ON_HOVER;
     public static final ModConfigSpec.ConfigValue<String> EXPERIENCE_COLOR;
     public static final ModConfigSpec.DoubleValue SCROLL_X_SCALE;
     public static final ModConfigSpec.DoubleValue SCROLL_X_OFFSET;
@@ -153,6 +154,8 @@ public final class StatlogConfig {
         INCREMENT_VALUE_SEPARATOR = b.comment("Join aligned increment_text entries with this text; Break starts a new line.")
                 .translation("statlog.config.increment_value_separator").define("increment_value_separator", ", ");
         SMOOTH_SCROLLING = b.comment("Animate attribute list scrolling.").translation("statlog.config.smooth_scrolling").define("smooth_scrolling", true);
+        SCROLL_NAMES_ON_HOVER = b.comment("Scroll clipped attribute names only while hovering over their text area.")
+                .translation("statlog.config.scroll_names_on_hover").define("scroll_names_on_hover", true);
         EXPERIENCE_COLOR = b.comment("RGB hex color for Statlog progression displays.").translation("statlog.config.experience_color").define("experience_color", "#55FF55");
         ATTRIBUTE_ROW_HEIGHT = b.comment("Attribute row height in GUI pixels; 23 keeps icons and controls clear.")
                 .translation("statlog.config.attribute_row_height").defineInRange("attribute_row_height", 23, 23, 64);

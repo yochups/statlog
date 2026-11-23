@@ -51,6 +51,8 @@ public final class StatlogScreen extends Screen {
     private String error = "";
     private boolean submittedUpgrades;
     private double scroll, targetScroll;
+    private String hoveredName;
+    private long nameHoverStart;
     private boolean dragging;
     private String heldAttribute;
     private int heldDirection;
@@ -254,7 +256,7 @@ public final class StatlogScreen extends Screen {
         renderPlayer(g, mx, my);
         renderProgress(g);
         renderCurrencies(g, mx, my);
-        renderEntries(g);
+        renderEntries(g, mx, my);
         if (!error.isEmpty()) g.drawCenteredString(font, font.plainSubstrByWidth(error, panelWidth - 20),
                 x + panelWidth / 2, y + panelHeight - 39, StatlogTextColors.get("error", 0xFFFF7777));
         if (edit != null && edit.visible && edit.isHovered()) {
@@ -407,8 +409,10 @@ public final class StatlogScreen extends Screen {
         if (hex.matches("#?[0-9a-fA-F]{6}")) return 0xFF000000 | Integer.parseInt(hex.replace("#", ""), 16);
         return StatlogConfig.MAXED_TEXT_SEPIA.get() ? 0xFFA88A67 : fallback;
     }
-    private void renderEntries(GuiGraphics g) {
+    private void renderEntries(GuiGraphics g, int mx, int my) {
         List<AttributeDefinition> entries = entries();
+        long now = Util.getMillis();
+        boolean hoveringClippedName = false;
         int max = maxScroll();
         targetScroll = Math.max(0, Math.min(max, targetScroll));
         scroll += (targetScroll - scroll) * (StatlogConfig.SMOOTH_SCROLLING.get() ? 0.35 : 1);
@@ -447,7 +451,18 @@ public final class StatlogScreen extends Screen {
             int overflow = font.width(name) - textMax;
             if (overflow > 0) {
                 long travel = overflow * 40L;
-                long phase = Util.getMillis() % (travel * 2 + 1600);
+                boolean hovered = mx >= nameX && mx < nameX + textMax
+                        && my >= Math.max(listY, rowY) && my < Math.min(listY + listHeight, rowY + rowHeight);
+                if (hovered) {
+                    hoveringClippedName = true;
+                    if (!def.attribute().equals(hoveredName)) {
+                        hoveredName = def.attribute();
+                        nameHoverStart = now;
+                    }
+                }
+                long phase = StatlogConfig.SCROLL_NAMES_ON_HOVER.get()
+                        ? hovered ? (now - nameHoverStart) % (travel * 2 + 1600) : 0
+                        : now % (travel * 2 + 1600);
                 int offset = phase < 800 ? 0 : phase < travel + 800 ? (int) ((phase - 800) / 40)
                         : phase < travel + 1600 ? overflow : overflow - (int) ((phase - travel - 1600) / 40);
                 g.flush();
@@ -475,6 +490,7 @@ public final class StatlogScreen extends Screen {
                 g.drawString(font, number, right - 10 - font.width(number) / 2, rowY + (rowHeight - 9) / 2, textColor, false);
             }
         }
+        if (!hoveringClippedName) hoveredName = null;
         g.disableScissor();
         if (max > 0) renderScrollbar(g, max);
     }
