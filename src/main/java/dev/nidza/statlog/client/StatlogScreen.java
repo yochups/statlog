@@ -303,9 +303,14 @@ public final class StatlogScreen extends Screen {
             level = preview.level();
             fraction = preview.fraction();
         }
-        float barScale = Math.min(StatlogConfig.XP_BAR_SCALE.get().floatValue(), (leftWidth - 12) / 182f);
+        int currencyRows = currencyRows();
+        String levelText = Integer.toString(level);
+        int levelWidth = font.width(levelText);
+        float availableScale = currencyRows > 1 ? (leftWidth - 17 - levelWidth) / 182f : (leftWidth - 12) / 182f;
+        float barScale = Math.min(StatlogConfig.XP_BAR_SCALE.get().floatValue(), availableScale);
         int barWidth = Math.max(1, Math.round(182 * barScale));
-        int barX = x + (leftWidth - barWidth) / 2 + StatlogConfig.XP_BAR_X_OFFSET.get();
+        int barX = x + (leftWidth - barWidth - (currencyRows > 1 ? levelWidth + 5 : 0)) / 2
+                + StatlogConfig.XP_BAR_X_OFFSET.get();
         int barY = y + panelHeight - 40 + StatlogConfig.XP_BAR_Y_OFFSET.get();
         g.pose().pushPose();
         g.pose().translate(barX, barY, 0);
@@ -317,12 +322,17 @@ public final class StatlogScreen extends Screen {
                 Math.min(182, Math.max(1, Math.round(182 * fraction))), 5);
         g.setColor(1, 1, 1, 1);
         g.pose().popPose();
-        drawScaledCentered(g, Component.literal(Integer.toString(level)), x + leftWidth / 2, barY - 12,
+        if (currencyRows > 1) g.drawString(font, levelText, barX + barWidth + 5, barY + 1,
+                StatlogTextColors.get("xp_level", color), false);
+        else drawScaledCentered(g, Component.literal(levelText), x + leftWidth / 2, barY - 12,
                 1f, leftWidth - 8, StatlogTextColors.get("xp_level", color));
     }
     private int leftLift() {
-        int rows = (ClientState.customPoints().size() + 5) / 5;
-        return (StatlogConfig.SHOW_XP_BAR.get() && rows > 0 ? 26 : 0) + Math.max(0, rows - 2) * 13;
+        return Math.max(0, currencyRows() - 2) * 13;
+    }
+    private int currencyRows() {
+        return ClientState.customPoints().isEmpty() && StatlogConfig.HIDE_SINGLE_CURRENCY.get()
+                ? 0 : (ClientState.customPoints().size() + 5) / 5;
     }
     private record XpPreview(int level, float fraction) {}
     private XpPreview previewVanillaXp(int points) {
@@ -354,7 +364,7 @@ public final class StatlogScreen extends Screen {
         currencies.add("XP");
         currencies.addAll(ClientState.customPoints());
         int rows = (currencies.size() + 4) / 5;
-        int firstY = y + panelHeight - (StatlogConfig.SHOW_XP_BAR.get() ? 82 : 63)
+        int firstY = y + panelHeight - (StatlogConfig.SHOW_XP_BAR.get() ? 66 : 63)
                 - Math.max(0, rows - 2) * 13;
         for (int row = 0; row < rows; row++) {
             int start = row * 5;
@@ -420,7 +430,7 @@ public final class StatlogScreen extends Screen {
             boolean rowCurrency = showRowCurrency(def);
             boolean maxed = level(def) >= def.maxLevel();
             if (rowCurrency) drawCurrencyIcon(g, def, listX + 1, rowY + (rowHeight - 16) / 2);
-            drawIcon(g, def.displayedIcon(level(def)), listX + (rowCurrency ? 18 : 1),
+            drawIcon(g, def.displayedIcon(level(def)), listX + (rowCurrency ? 18 : 6),
                     rowY + (rowHeight - 16) / 2);
             int old = ClientState.level(def);
             int current = level(def);
@@ -430,8 +440,8 @@ public final class StatlogScreen extends Screen {
             int textColor = canIncrease ? StatlogTextColors.get("attribute_available", 0xFF3C332B)
                     : StatlogTextColors.get("attribute_unavailable", 0xFF9A8C80);
             if (maxed) textColor = maxedColor(textColor);
-            int textMax = Math.max(16, rowWidth - (editing ? 103 : 66) + (rowCurrency ? 0 : 17));
-            int nameX = listX + (rowCurrency ? 38 : 21);
+            int textMax = Math.max(16, rowWidth - (editing ? 103 : 66) + (rowCurrency ? 0 : 12));
+            int nameX = listX + (rowCurrency ? 38 : 26);
             int nameY = rowY + (rowHeight - 9) / 2;
             Component name = statText(StatlogLanguage.value(def.name()).getString(), maxed);
             int overflow = font.width(name) - textMax;

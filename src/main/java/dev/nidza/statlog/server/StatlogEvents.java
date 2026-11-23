@@ -1,10 +1,13 @@
 package dev.nidza.statlog.server;
 
 import dev.nidza.statlog.Statlog;
+import dev.nidza.statlog.VariableJumpPhysics;
 import dev.nidza.statlog.config.StatlogConfig;
 import dev.nidza.statlog.network.StatlogNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.item.ItemStack;
@@ -13,6 +16,7 @@ import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -112,6 +116,16 @@ public final class StatlogEvents {
     public static void equipmentDebuff(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.tickCount % 20 != 0) return;
         ItemRules.applyDebuffs(player);
+    }
+    @SubscribeEvent
+    public static void variableJump(LivingEvent.LivingJumpEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !StatlogConfig.HOLD_TO_JUMP_HIGHER.get()
+                || player.getAbilities().flying || player.isPassenger() || player.isFallFlying() || player.isInWater()
+                || player.isInLava() || player.hasEffect(MobEffects.LEVITATION)
+                || player.hasEffect(MobEffects.SLOW_FALLING)) return;
+        Vec3 movement = player.getDeltaMovement();
+        double minimum = VariableJumpPhysics.minimumImpulse(player, StatlogConfig.MINIMUM_JUMP_STRENGTH.get());
+        player.setDeltaMovement(movement.x, minimum, movement.z);
     }
     @SubscribeEvent
     public static void itemDamage(LivingDamageEvent.Pre event) {

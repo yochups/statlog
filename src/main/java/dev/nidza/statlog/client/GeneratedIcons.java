@@ -24,7 +24,9 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class GeneratedIcons {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String[] DEFAULTS = {"health", "strength", "speed", "stamina", "defense",
-            "attack_speed", "knockback", "luck", "toughness", "mining_speed", "regeneration"};
+            "attack_speed", "knockback", "luck", "toughness", "mining_speed", "regeneration",
+            "breath_control", "explosive_resistance", "fall_resistance", "fire_resistance",
+            "jump_strength", "knockback_resistance", "resistance", "step_height"};
     private static final Path ROOT = FMLPaths.CONFIGDIR.get().resolve("statlog/icons");
     private static final Map<ResourceLocation, Long> LOADED = new HashMap<>();
 
@@ -103,7 +105,8 @@ public final class GeneratedIcons {
         if (Files.exists(file)) return;
         Files.createDirectories(file.getParent());
         String source = tab ? placeholder + ".png" : name;
-        if (!tab && !List.of(DEFAULTS).contains(name.replace(".png", "")))
+        if (placeholder.equals("attributes")
+                && GeneratedIcons.class.getResource("/assets/statlog/icon_placeholders/attributes/" + name) == null)
             source = DEFAULTS[ThreadLocalRandom.current().nextInt(DEFAULTS.length)] + ".png";
         String resource = placeholder.equals("currency") || placeholder.equals("orb")
                 ? "/assets/statlog/textures/gui/statlog_currency.png"

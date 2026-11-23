@@ -31,6 +31,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,13 +56,18 @@ public final class StatlogClient {
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
                 event.registerReloadListener((ResourceManagerReloadListener) ignored -> StatlogLanguage.reload()));
         NeoForge.EVENT_BUS.addListener(StatlogClient::inventoryInit);
+        NeoForge.EVENT_BUS.addListener((LivingEvent.LivingJumpEvent event) -> VariableJump.onJump(event));
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> {
+            VariableJump.tick();
             while (OPEN_KEY.consumeClick()) {
                 if (Minecraft.getInstance().player != null && Minecraft.getInstance().screen == null)
                     PacketDistributor.sendToServer(new StatlogNetwork.RequestOpen("view"));
             }
         });
-        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> VanillaXpCurve.clearClient());
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> {
+            VanillaXpCurve.clearClient();
+            VariableJump.clear();
+        });
     }
     private static void setup(FMLClientSetupEvent event) {
         if (!ModList.get().isLoaded("fancymenu")) return;

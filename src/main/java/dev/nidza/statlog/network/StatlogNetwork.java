@@ -150,6 +150,8 @@ public final class StatlogNetwork {
         snapshot.putString("Title", dev.nidza.statlog.config.StatlogConfig.TITLE.get());
         snapshot.putString("CurrencyMode", dev.nidza.statlog.config.StatlogConfig.currencyMode());
         snapshot.putBoolean("LinearVanillaXp", dev.nidza.statlog.config.StatlogConfig.LINEAR_VANILLA_XP.get());
+        snapshot.putBoolean("HoldToJumpHigher", dev.nidza.statlog.config.StatlogConfig.HOLD_TO_JUMP_HIGHER.get());
+        snapshot.putDouble("MinimumJumpStrength", dev.nidza.statlog.config.StatlogConfig.MINIMUM_JUMP_STRENGTH.get());
         snapshot.putInt("VanillaXpPerLevel", dev.nidza.statlog.config.StatlogConfig.VANILLA_XP_PER_LEVEL.get());
         snapshot.putInt("XpCostBase", dev.nidza.statlog.config.StatlogConfig.XP_COST_BASE.get());
         snapshot.putInt("XpCostIncrement", dev.nidza.statlog.config.StatlogConfig.XP_COST_INCREMENT.get());

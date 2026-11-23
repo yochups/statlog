@@ -37,6 +37,8 @@ Define up to eleven `[[attribute_tabs]]` entries in `statlog-attributes.toml` wi
 
 The client config controls panel width and height, whether the sole XP balance and row icons are shown, currency icons in tooltips, and the Finalize sound. Current and next value text is gray; set either separator to `Break` to put values on separate lines. For a vanilla attribute whose base is zero, use `percentage_bases` to supply a percentage reference. `Next Level` is hidden at maximum level.
 
+Optional variable jump height is configured under `[jump]` in `statlog-common.toml`. It is off by default. When enabled, tapping Jump uses the `minimum_jump_strength` impulse (0.42 by default), and holding it extends the rise up to the player's Jump Strength limit. Releasing Jump fades out the added lift.
+
 Questlog is optional. When installed, it can track stat gains, losses, or reaching a target level through the `statlog:stat` objective. The `statlog:currency` and `statlog:stat` rewards grant currencies and levels. An example repeated quest is in `examples/questlog/quests/statlog_training.json`.
 
 Resource packs can also replace other UI textures under `assets/statlog/textures/gui/`, including the currency dot. `statlog_edit_tab.png` has normal and highlighted halves (The book/barrier is drawn separately). Text colors are in `assets/statlog/ui_colors.json`. FancyMenu can target `statlog_screen` for buttons and overlays.

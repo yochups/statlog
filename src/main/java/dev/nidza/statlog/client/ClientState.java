@@ -42,6 +42,8 @@ public final class ClientState {
     private static float vanillaProgress;
     private static boolean linearVanillaXp;
     private static int vanillaXpPerLevel = 50;
+    private static boolean holdToJumpHigher;
+    private static double minimumJumpStrength = 0.42;
 
     public static void update(CompoundTag snapshot) {
         progress = snapshot.getCompound("Progress");
@@ -61,6 +63,8 @@ public final class ClientState {
         vanillaProgress = snapshot.getFloat("VanillaProgress");
         linearVanillaXp = snapshot.getBoolean("LinearVanillaXp");
         vanillaXpPerLevel = Math.max(1, snapshot.getInt("VanillaXpPerLevel"));
+        holdToJumpHigher = snapshot.getBoolean("HoldToJumpHigher");
+        minimumJumpStrength = snapshot.getDouble("MinimumJumpStrength");
         Map<String, AttributeDefinition> loaded = new LinkedHashMap<>();
         for (Tag raw : snapshot.getList("Definitions", Tag.TAG_COMPOUND)) {
             CompoundTag row = (CompoundTag) raw;
@@ -120,6 +124,8 @@ public final class ClientState {
     public static float vanillaProgress() { return vanillaProgress; }
     public static boolean linearVanillaXp() { return linearVanillaXp; }
     public static int vanillaXpPerLevel() { return vanillaXpPerLevel; }
+    public static boolean holdToJumpHigher() { return holdToJumpHigher; }
+    public static double minimumJumpStrength() { return minimumJumpStrength; }
     public static int pointColor(String id) {
         try { return 0xFF000000 | Integer.parseInt(pointColors.getString(id).replace("#", ""), 16); }
         catch (NumberFormatException ignored) { return 0xFFFFFFFF; }

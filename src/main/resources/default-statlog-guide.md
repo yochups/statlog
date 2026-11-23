@@ -67,4 +67,6 @@ Caps Lock opens Statlog by default. `/statlog orb spawn POWER 10` creates a pick
 
 Client settings include `panel_width` and `panel_height`, currency display in rows and tooltips, and whether Finalize plays its configured sound after an upgrade. For multi-attribute tooltip text, `{1}`, `{2}`, and so on refer to the corresponding attribute. Set a current or increment value separator to `Break` to put each value on its own line. At max level the next increment disappears.
 
+The common config's `[jump]` section controls variable jump height. `hold_to_jump_higher` ships off; turn it on to make holding Jump extend the rise up to the height allowed by the player's Jump Strength attribute. A tap uses `minimum_jump_strength = 0.42`, Minecraft's normal player jump impulse. Lower that value for shorter taps; releasing Jump removes only the extra rise smoothly.
+
 With Questlog installed, Statlog registers a `statlog:stat` objective. Its `mode` is `GAIN`, `LOSS`, or `REACH`; Questlog's `required_amount` controls progress and `repeatable` allows repeated accrual quests. The `statlog:currency` and `statlog:stat` rewards grant currency or levels. See `examples/questlog/quests/statlog_training.json` in the mod source for a quest example.
